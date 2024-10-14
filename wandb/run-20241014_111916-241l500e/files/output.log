@@ -1,0 +1,11 @@
+Epochs:   0%|          | 0/10 [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "/home/michael/CAMTEL/train_randstainna2.py", line 254, in <module>
+    train_model(model, dataloaders, optimizer, weights, n_epochs, device, class_names)
+  File "/home/michael/CAMTEL/train_randstainna2.py", line 161, in train_model
+    train_metrics_dict = train_epoch(model, optimizer, weights, dataloaders, num_tasks, device)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michael/CAMTEL/train_randstainna2.py", line 85, in train_epoch
+    images, labels = images.to(device), labels.to(device).float()
+                     ^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

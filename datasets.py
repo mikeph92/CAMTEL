@@ -51,8 +51,14 @@ class MultiTaskDataset(Dataset):
         img_name = self.img_names[idx]
         img_path = get_path(self.datasets[idx], img_name,self.datatype)
         full_img = Image.open(img_path)
-        crop_box = (self.centerXs[idx]-self.crop_size/2,self.centerYs[idx]-self.crop_size/2, self.centerXs[idx]+self.crop_size/2, self.centerYs[idx]+self.crop_size/2)
-        image = full_img.crop(crop_box)
+        if self.datasets[idx] == "lizard":
+            crop_size = int(self.crop_size/2)           #lizard dataset has x20 magnification instead of x40
+            crop_box = (self.centerXs[idx]-crop_size/2,self.centerYs[idx]-crop_size/2, self.centerXs[idx]+crop_size/2, self.centerYs[idx]+crop_size/2)
+            image = full_img.crop(crop_box)
+            image = image.resize((self.crop_size, self.crop_size), Image.LANCZOS)       #resize into standard size to fix with other datasets
+        else:
+            crop_box = (self.centerXs[idx]-self.crop_size/2,self.centerYs[idx]-self.crop_size/2, self.centerXs[idx]+self.crop_size/2, self.centerYs[idx]+self.crop_size/2)
+            image = full_img.crop(crop_box)
 
         image = self.transform(image)
 
@@ -95,8 +101,14 @@ class MultiTaskDatasetRandStainNA(Dataset):
         dataset = self.datasets[idx]
         img_path = get_path(dataset, img_name,self.datatype)
         full_img = Image.open(img_path)
-        crop_box = (self.centerXs[idx]-self.crop_size/2,self.centerYs[idx]-self.crop_size/2, self.centerXs[idx]+self.crop_size/2, self.centerYs[idx]+self.crop_size/2)
-        image = full_img.crop(crop_box)
+        if dataset == "lizard":
+            crop_size = int(self.crop_size/2)           #lizard dataset has x20 magnification instead of x40
+            crop_box = (self.centerXs[idx]-crop_size/2,self.centerYs[idx]-crop_size/2, self.centerXs[idx]+crop_size/2, self.centerYs[idx]+crop_size/2)
+            image = full_img.crop(crop_box)
+            image = image.resize((self.crop_size, self.crop_size), Image.LANCZOS)       #resize into standard size to fix with other datasets
+        else:
+            crop_box = (self.centerXs[idx]-self.crop_size/2,self.centerYs[idx]-self.crop_size/2, self.centerXs[idx]+self.crop_size/2, self.centerYs[idx]+self.crop_size/2)
+            image = full_img.crop(crop_box)
 
         image = self.transform(image.convert('RGB'))
 
