@@ -7,4 +7,5 @@ opencv-python
 openpyxl
 torchcam
 wandb
-    
+torchmetrics
+timm

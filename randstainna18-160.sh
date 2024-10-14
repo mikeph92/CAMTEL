@@ -1,80 +1,110 @@
-
 python train_randstainna2.py \
 --classification-task 'tumor' \
+--model 'ResNet18' \
+--crop-size 96 \
+--testset 'pannuke'
+
+python test_randstainna2.py \
+--classification-task 'tumor' \
+--model 'ResNet18' \
+--crop-size 96 \
+--testset 'pannuke' \
+--test-method 'mv' 
+
+python test_randstainna2.py \
+--classification-task 'tumor' \
+--model 'ResNet18' \
+--crop-size 96 \
 --testset 'pannuke' 
 
+#######################################
+
 python train_randstainna2.py \
 --classification-task 'tumor' \
+--model 'ResNet18' \
+--crop-size 96 \
 --testset 'ocelot' 
 
+python test_randstainna2.py \
+--classification-task 'tumor' \
+--model 'ResNet18' \
+--crop-size 96 \
+--testset 'ocelot'  \
+--test-method 'mv' 
+
+
+python test_randstainna2.py \
+--classification-task 'tumor' \
+--model 'ResNet18' \
+--crop-size 96 \
+--testset 'ocelot' 
+
+
+#######################################
+
 python train_randstainna2.py \
 --classification-task 'tumor' \
+--model 'ResNet18' \
+--crop-size 96 \
 --testset 'nucls' 
 
+python test_randstainna2.py \
+--classification-task 'tumor' \
+--model 'ResNet18' \
+--crop-size 96 \
+--testset 'nucls'  \
+--test-method 'mv' 
+
+python test_randstainna2.py \
+--classification-task 'tumor' \
+--model 'ResNet18' \
+--crop-size 96 \
+--testset 'nucls' 
 
 # train_randstainna for single headed tasks
 python train_randstainna2.py \
 --classification-task 'tumor' \
+--model 'ResNet18' \
+--crop-size 96 \
 --testset 'pannuke' \
---multitask ''
+--multitask '' 
+python test_randstainna2.py \
+--classification-task 'tumor' \
+--model 'ResNet18' \
+--crop-size 96 \
+--testset 'pannuke' \
+--multitask ''  
+
+######################################
 
 python train_randstainna2.py \
 --classification-task 'tumor' \
+--model 'ResNet18' \
+--crop-size 96 \
 --testset 'ocelot' \
---multitask ''
+--multitask '' 
+
+
+python test_randstainna2.py \
+--classification-task 'tumor' \
+--model 'ResNet18' \
+--crop-size 96 \
+--testset 'ocelot'  \
+--multitask '' 
+
+#####################################
 
 python train_randstainna2.py \
 --classification-task 'tumor' \
+--model 'ResNet18' \
+--crop-size 96 \
 --testset 'nucls' \
---multitask ''
-
-
-
-# test_randstainna using multitask models with majority vote
+--multitask '' 
 
 python test_randstainna2.py \
 --classification-task 'tumor' \
---testset 'pannuke'  \
---test-method 'mv'
-
-python test_randstainna2.py \
---classification-task 'tumor' \
---testset 'ocelot' \
---test-method 'mv'
-
-python test_randstainna2.py \
---classification-task 'tumor' \
+--model 'ResNet18' \
+--crop-size 96 \
 --testset 'nucls'  \
---test-method 'mv'
+--multitask '' 
 
-
-#test_randstainna using multitask model based on clusters
-
-python test_randstainna2.py \
---classification-task 'tumor' \
---testset 'pannuke' 
-
-python test_randstainna2.py \
---classification-task 'tumor' \
---testset 'ocelot'
-
-python test_randstainna2.py \
---classification-task 'tumor' \
---testset 'nucls' 
-
-
-# test_randstainna using single headed model
-python test_randstainna2.py \
---classification-task 'tumor' \
---testset 'pannuke'  \
---multitask ''
-
-python test_randstainna2.py \
---classification-task 'tumor' \
---testset 'ocelot' \
---multitask ''
-
-python test_randstainna2.py \
---classification-task 'tumor' \
---testset 'nucls'  \
---multitask ''

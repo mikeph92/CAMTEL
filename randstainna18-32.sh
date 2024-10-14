@@ -1,119 +1,122 @@
 python train_randstainna2.py \
 --classification-task 'TIL' \
+--model "ResNet18" \
+--testset 'lizard'
+
+python test_randstainna2.py \
+--classification-task 'TIL' \
+--model "ResNet18" \
 --testset 'lizard' \
---crop-size 32
+--test-method 'mv'
 
+python test_randstainna2.py \
+--classification-task 'TIL' \
+--model "ResNet18" \
+--testset 'lizard' 
+
+##########################################
 python train_randstainna2.py \
 --classification-task 'TIL' \
---testset 'cptacCoad' \
---crop-size 32
+--model "ResNet18" \
+--testset 'cptacCoad' 
 
+python test_randstainna2.py \
+--classification-task 'TIL' \
+--model "ResNet18" \
+--testset 'cptacCoad'  \
+--test-method 'mv' 
+
+python test_randstainna2.py \
+--classification-task 'TIL' \
+--model "ResNet18" \
+--testset 'cptacCoad' 
+
+#########################################
 python train_randstainna2.py \
 --classification-task 'TIL' \
---testset 'tcgaBrca' \
---crop-size 32
+--model "ResNet18" \
+--testset 'tcgaBrca' 
 
+
+python test_randstainna2.py \
+--classification-task 'TIL' \
+--model "ResNet18" \
+--testset 'tcgaBrca'  \
+--test-method 'mv' 
+
+
+python test_randstainna2.py \
+--classification-task 'TIL' \
+--model "ResNet18" \
+--testset 'tcgaBrca' 
+
+######################################
 python train_randstainna2.py \
 --classification-task 'TIL' \
---testset 'nucls' \
---crop-size 32
+--model "ResNet18" \
+--testset 'nucls' 
 
+python test_randstainna2.py \
+--classification-task 'TIL' \
+--model "ResNet18" \
+--testset 'nucls'  \
+--test-method 'mv' 
+
+python test_randstainna2.py \
+--classification-task 'TIL' \
+--model "ResNet18" \
+--testset 'nucls' 
 
 # train_randstainna for single headed tasks
 python train_randstainna2.py \
 --classification-task 'TIL' \
+--model "ResNet18" \
 --testset 'lizard' \
---multitask '' \
---crop-size 32
+--multitask '' 
 
+python test_randstainna2.py \
+--classification-task 'TIL' \
+--model "ResNet18" \
+--testset 'lizard' \
+--multitask ''  
+
+#########################################
 python train_randstainna2.py \
 --classification-task 'TIL' \
+--model "ResNet18" \
 --testset 'cptacCoad' \
---multitask '' \
---crop-size 32
+--multitask '' 
 
+python test_randstainna2.py \
+--classification-task 'TIL' \
+--model "ResNet18" \
+--testset 'cptacCoad'  \
+--multitask '' 
+
+#####################################
 python train_randstainna2.py \
 --classification-task 'TIL' \
+--model "ResNet18" \
 --testset 'tcgaBrca' \
---multitask '' \
---crop-size 32
+--multitask '' 
 
+python test_randstainna2.py \
+--classification-task 'TIL' \
+--model "ResNet18" \
+--testset 'tcgaBrca'  \
+--multitask '' 
+
+
+#########################################
 python train_randstainna2.py \
 --classification-task 'TIL' \
+--model "ResNet18" \
 --testset 'nucls' \
---multitask '' \
---crop-size 32
-
-
-# test_randstainna using multitask models with majority vote
-python test_randstainna2.py \
---classification-task 'TIL' \
---testset 'lizard' \
---test-method 'mv' \
---crop-size 32
+--multitask ''
 
 python test_randstainna2.py \
 --classification-task 'TIL' \
---testset 'cptacCoad'  \
---test-method 'mv' \
---crop-size 32
-
-python test_randstainna2.py \
---classification-task 'TIL' \
---testset 'tcgaBrca'  \
---test-method 'mv' \
---crop-size 32
-
-python test_randstainna2.py \
---classification-task 'TIL' \
+--model "ResNet18" \
 --testset 'nucls'  \
---test-method 'mv' \
---crop-size 32
-
-
-#test_randstainna using multitask model based on clusters
-python test_randstainna2.py \
---classification-task 'TIL' \
---testset 'lizard' \
---crop-size 32
-
-python test_randstainna2.py \
---classification-task 'TIL' \
---testset 'cptacCoad' \
---crop-size 32
-
-python test_randstainna2.py \
---classification-task 'TIL' \
---testset 'tcgaBrca' \
---crop-size 32
-
-python test_randstainna2.py \
---classification-task 'TIL' \
---testset 'nucls' \
---crop-size 32
-
-# test_randstainna using single headed model
-python test_randstainna2.py \
---classification-task 'TIL' \
---testset 'lizard' \
---multitask ''  \
---crop-size 32
-
-python test_randstainna2.py \
---classification-task 'TIL' \
---testset 'cptacCoad'  \
---multitask '' \
---crop-size 32
-
-python test_randstainna2.py \
---classification-task 'TIL' \
---testset 'tcgaBrca'  \
---multitask '' \
---crop-size 32
-
-python test_randstainna2.py \
---classification-task 'TIL' \
---testset 'nucls'  \
---multitask ''  \
---crop-size 32
+--multitask ''  
 

@@ -1,0 +1,10 @@
+{"time":"2024-10-14T07:44:04.032574568Z","level":"INFO","msg":"using version","core version":"0.18.3"}
+{"time":"2024-10-14T07:44:04.032581068Z","level":"INFO","msg":"created symlink","path":"/home/michael/CAMTEL/wandb/run-20241014_074404-98cgsoy8/logs/debug-core.log"}
+{"time":"2024-10-14T07:44:04.034489378Z","level":"ERROR","msg":"dialing: google: could not find default credentials. See https://cloud.google.com/docs/authentication/external/set-up-adc for more information"}
+{"time":"2024-10-14T07:44:04.043334659Z","level":"INFO","msg":"created new stream","id":"98cgsoy8"}
+{"time":"2024-10-14T07:44:04.043505987Z","level":"INFO","msg":"stream: started","id":"98cgsoy8"}
+{"time":"2024-10-14T07:44:04.043529633Z","level":"INFO","msg":"writer: Do: started","stream_id":{"value":"98cgsoy8"}}
+{"time":"2024-10-14T07:44:04.043596003Z","level":"INFO","msg":"handler: started","stream_id":{"value":"98cgsoy8"}}
+{"time":"2024-10-14T07:44:04.043546839Z","level":"INFO","msg":"sender: started","stream_id":{"value":"98cgsoy8"}}
+{"time":"2024-10-14T07:44:04.378835804Z","level":"INFO","msg":"wandb-core","!BADKEY":null}
+{"time":"2024-10-14T07:44:04.379717355Z","level":"INFO","msg":"Starting system monitor"}

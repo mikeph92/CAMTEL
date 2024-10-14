@@ -23,7 +23,7 @@ parser.add_argument('--classification-task', type=str, default='tumor', help='cl
 parser.add_argument('--testset', type=str, default='ocelot', help='dataset used for testing: ocelot, pannuke, nucls (tumor) or lizard, cptacCoad, tcgaBrca, nucls (TIL)') 
 parser.add_argument('--sample-size', type=float, default='0.05')
 parser.add_argument('--multitask', type=bool, default=True, help="Enable use multitask model")
-parser.add_argument('--crop-size', type=int, default=160)
+parser.add_argument('--crop-size', type=int, default=32)
 parser.add_argument('--model', type=str, default="ResNet18", help="backbone ResNet18 or ResNet50")
 
 
@@ -168,7 +168,7 @@ def train_model(model, dataloaders, optimizer, weights, n_epochs, device, class_
 
 
 def read_data(task, testset):
-    df = pd.read_csv("dataset/full_dataset.csv",names=["dataset", "img_name", "centerX", "centerY", "labelTIL", "labelTumor"])
+    df = pd.read_csv("dataset/full_dataset.csv")
 
     df_clustering = pd.read_csv(f"clustering/output/clustering_result_{task}_{testset}.csv")
 
@@ -187,11 +187,11 @@ if __name__ == '__main__':
     df = df[df.dataset != args.testset]
     df.dropna(inplace=True)
 
-    # Create a new column combining multiple stratification features
-    if args.classification_task == 'tumor':
-        df['stratify_key'] = df.apply(lambda row: f"{row['labelTumor']}_{row['dataset']}", axis = 1)
-    else:
-        df['stratify_key'] = df.apply(lambda row: f"{row['labelTIL']}_{row['dataset']}", axis = 1)
+    # # Create a new column combining multiple stratification features
+    # if args.classification_task == 'tumor':
+    #     df['stratify_key'] = df.apply(lambda row: f"{row['labelTumor']}_{row['dataset']}", axis = 1)
+    # else:
+    #     df['stratify_key'] = df.apply(lambda row: f"{row['labelTIL']}_{row['dataset']}", axis = 1)
 
     datasets = []
     weights = []
@@ -207,11 +207,11 @@ if __name__ == '__main__':
         if args.multitask:
             df_filtered = df[df.labelCluster == i].reset_index()
         
-        sample,_ = train_test_split(df_filtered, train_size=args.sample_size, stratify=df_filtered['stratify_key'], random_state=7)
+        # sample,_ = train_test_split(df_filtered, train_size=args.sample_size, stratify=df_filtered['stratify_key'], random_state=7)
 
         dataset = []
         cluster = None
-        dataset_cluster = MultiTaskDatasetRandStainNA(sample.reset_index(), task = args.classification_task, 
+        dataset_cluster = MultiTaskDatasetRandStainNA(df_filtered, task = args.classification_task, 
                                               testset = args.testset, cluster = cluster, crop_size = args.crop_size)
         dataset.append(dataset_cluster)
         w = torch.tensor([dataset_cluster.pos_weight], dtype=torch.float32, device=device)
@@ -219,7 +219,7 @@ if __name__ == '__main__':
         if args.multitask:
             for j in range(num_tasks):
                 cluster = i
-                dataset_cluster = MultiTaskDatasetRandStainNA(sample.reset_index(), task = args.classification_task, 
+                dataset_cluster = MultiTaskDatasetRandStainNA(df_filtered, task = args.classification_task, 
                                               testset = args.testset, cluster = cluster, crop_size = args.crop_size)
                 dataset.append(dataset_cluster)
         dataset = ConcatDataset(dataset)
@@ -234,7 +234,7 @@ if __name__ == '__main__':
         model = MultiTaskResNet18(num_tasks=num_tasks, retrain = True)
 
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
-    batch_size = 32
+    batch_size = 64
     n_epochs = 10
     class_names = ["non-tumor", "tumor"] if args.classification_task == "tumor" else ["non-TIL", "TIL"]
     train_split = 0.8
@@ -248,8 +248,8 @@ if __name__ == '__main__':
         train_dataset, val_dataset = random_split(dataset, [train_size, val_size], generator = generator)        
 
         dataloaders[task_idx] = {
-            'train': DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True),
-            'val': DataLoader(val_dataset, batch_size=batch_size, shuffle=False, drop_last=True)
+            'train': DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers = 2),
+            'val': DataLoader(val_dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers = 2)
         }
     
     train_model(model, dataloaders, optimizer, weights, n_epochs, device, class_names)

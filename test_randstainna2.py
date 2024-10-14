@@ -29,7 +29,7 @@ parser.add_argument('--testset', type=str, default='ocelot', help='dataset used 
 parser.add_argument('--multitask', type=bool, default=True, help="Enable use multitask model")
 parser.add_argument('--test-method', type=str, default='cluster', help='') 
 parser.add_argument('--sample', type=float, default='0.2')
-parser.add_argument('--crop-size', type=int, default=160)
+parser.add_argument('--crop-size', type=int, default=32)
 parser.add_argument('--model', type=str, default="ResNet18", help="backbone ResNet18 or ResNet50")
 
 args = parser.parse_args()
@@ -222,8 +222,8 @@ def dataset_by_cluster(df, df_train, num_tasks):
         df_filtered.reset_index()
         cluster = i
         try:
-            sample,_ = train_test_split(df_filtered, train_size=args.sample, stratify=df_filtered[stratifier], random_state=7)
-            dataset = MultiTaskDatasetRandStainNA(sample.reset_index(), task = args.classification_task, 
+            # sample,_ = train_test_split(df_filtered, train_size=args.sample, stratify=df_filtered[stratifier], random_state=7)
+            dataset = MultiTaskDatasetRandStainNA(df_filtered, task = args.classification_task, 
                                               testset = args.testset, cluster = cluster, crop_size = args.crop_size)
             datasets.append(dataset) 
         except Exception:
@@ -239,8 +239,8 @@ def dataset_by_mv(df, num_tasks):
     for i in range(num_tasks):
         cluster = i if args.multitask else None
         try:
-            sample,_ = train_test_split(df, train_size=args.sample, stratify=df[stratifier], random_state=7)
-            dataset = MultiTaskDatasetRandStainNA(sample.reset_index(), task = args.classification_task, 
+            # sample,_ = train_test_split(df, train_size=args.sample, stratify=df[stratifier], random_state=7)
+            dataset = MultiTaskDatasetRandStainNA(df, task = args.classification_task, 
                                               testset = args.testset, cluster = cluster, crop_size = args.crop_size)
             datasets.append(dataset) 
         except Exception:
@@ -249,10 +249,10 @@ def dataset_by_mv(df, num_tasks):
 
 if __name__ == '__main__':
 
-    df = pd.read_csv("dataset/full_dataset.csv",names=["dataset", "img_name", "centerX", "centerY", "labelTIL", "labelTumor"])
+    df = pd.read_csv("dataset/full_dataset.csv")
     df = df[df.dataset == args.testset].reset_index()
 
-    stratifier = "labelTumor" if args.classification_task == "tumor" else "labelTIL"
+    # stratifier = "labelTumor" if args.classification_task == "tumor" else "labelTIL"
     df_train = pd.read_csv(f"clustering/output/clustering_result_{args.classification_task}_{args.testset}.csv")
 
     
@@ -261,7 +261,7 @@ if __name__ == '__main__':
     if args.multitask:
         num_tasks  = len(df_train.labelCluster.unique())  #number of clustes in dataset and number of heads in multitask model
 
-    batch_size = 32
+    batch_size = 64
 
     # load saved model
     model_files = glob.glob(f'saved_models/randstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}*')
@@ -279,15 +279,15 @@ if __name__ == '__main__':
     if args.multitask:
         if args.test_method == "cluster":       #test by most similar cluster
             dataset, df_test = dataset_by_cluster(df, df_train, num_tasks)
-            dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=True)
+            dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers = 2)
             test_metrics_dict, cm = test_by_cluster(model, dataloader, df_test, device)
         elif args.test_method == "mv":          # majority vote
             datasets, df_test = dataset_by_mv(df, num_tasks)
-            dataloaders = [DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=True) for dataset in datasets]
+            dataloaders = [DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers = 2) for dataset in datasets]
             test_metrics_dict, cm = test_by_mv(model, dataloaders, device)
     else:
         datasets, df_test = dataset_by_mv(df, num_tasks)
-        dataloaders = [DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=True) for dataset in datasets]
+        dataloaders = [DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers = 2) for dataset in datasets]
         test_metrics_dict, cm = test_by_mv(model, dataloaders, device)
 
 
