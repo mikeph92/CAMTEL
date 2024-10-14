@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 parser = argparse.ArgumentParser(description='clustering')
 parser.add_argument('--classification-task', type=str, default='tumor', help='classification task: tumor or TIL') 
 parser.add_argument('--testset', type=str, default='ocelot', help='dataset used for testing: ocelot, pannuke, nucls (tumor) or lizard, cptacCoad, tcgaBrca, nucls (TIL)') 
-parser.add_argument('--sample-size', type=float, default='0.05')
+parser.add_argument('--sample-size', type=float, default='0.2')
 parser.add_argument('--multitask', type=bool, default=True, help="Enable use multitask model")
 parser.add_argument('--crop-size', type=int, default=32)
 parser.add_argument('--model', type=str, default="ResNet18", help="backbone ResNet18 or ResNet50")
@@ -30,7 +30,7 @@ parser.add_argument('--model', type=str, default="ResNet18", help="backbone ResN
 args = parser.parse_args()
 
 # initiate wandb
-project_name = "ColorBasedMultitask"
+project_name = "ColorBasedMultitask-train-full"
 multitask = "Multitask" if args.multitask else "Single"
 exp_name = f"randstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 run = wandb.init(project=project_name, name=exp_name)
@@ -38,7 +38,8 @@ run = wandb.init(project=project_name, name=exp_name)
 # Determine which device on import, and then use that elsewhere.
 device = torch.device("cpu")
 if torch.cuda.is_available():
-    device = torch.device("cuda:0")
+    index = 1 if args.model == "ResNet18" else 0
+    device = torch.device(f"cuda:{index}")
     torch.cuda.set_device(device)
 
 def plot_confusion_matrix(cm, class_names):
@@ -188,10 +189,8 @@ if __name__ == '__main__':
     df.dropna(inplace=True)
 
     # # Create a new column combining multiple stratification features
-    # if args.classification_task == 'tumor':
-    #     df['stratify_key'] = df.apply(lambda row: f"{row['labelTumor']}_{row['dataset']}", axis = 1)
-    # else:
-    #     df['stratify_key'] = df.apply(lambda row: f"{row['labelTIL']}_{row['dataset']}", axis = 1)
+    stratifier = "labelTumor" if args.classification_task == "tumor" else "labelTIL"
+
 
     datasets = []
     weights = []
@@ -207,11 +206,11 @@ if __name__ == '__main__':
         if args.multitask:
             df_filtered = df[df.labelCluster == i].reset_index()
         
-        # sample,_ = train_test_split(df_filtered, train_size=args.sample_size, stratify=df_filtered['stratify_key'], random_state=7)
+        sample,_ = train_test_split(df_filtered, train_size=args.sample_size, stratify=df_filtered[stratifier], random_state=7)
 
         dataset = []
         cluster = None
-        dataset_cluster = MultiTaskDatasetRandStainNA(df_filtered, task = args.classification_task, 
+        dataset_cluster = MultiTaskDatasetRandStainNA(sample.reset_index(), task = args.classification_task, 
                                               testset = args.testset, cluster = cluster, crop_size = args.crop_size)
         dataset.append(dataset_cluster)
         w = torch.tensor([dataset_cluster.pos_weight], dtype=torch.float32, device=device)
@@ -219,7 +218,7 @@ if __name__ == '__main__':
         if args.multitask:
             for j in range(num_tasks):
                 cluster = i
-                dataset_cluster = MultiTaskDatasetRandStainNA(df_filtered, task = args.classification_task, 
+                dataset_cluster = MultiTaskDatasetRandStainNA(sample.reset_index(), task = args.classification_task, 
                                               testset = args.testset, cluster = cluster, crop_size = args.crop_size)
                 dataset.append(dataset_cluster)
         dataset = ConcatDataset(dataset)

@@ -28,7 +28,7 @@ parser.add_argument('--classification-task', type=str, default='tumor', help='cl
 parser.add_argument('--testset', type=str, default='ocelot', help='dataset used for testing: ocelot, pannuke, nucls (tumor) or lizard, cptacCoad, tcgaBrca, nucls (TIL)') 
 parser.add_argument('--multitask', type=bool, default=True, help="Enable use multitask model")
 parser.add_argument('--test-method', type=str, default='cluster', help='') 
-parser.add_argument('--sample', type=float, default='0.2')
+parser.add_argument('--sample', type=float, default='0.5')
 parser.add_argument('--crop-size', type=int, default=32)
 parser.add_argument('--model', type=str, default="ResNet18", help="backbone ResNet18 or ResNet50")
 
@@ -44,7 +44,8 @@ run = wandb.init(project=project_name, name=exp_name)
 # Determine which device on import, and then use that elsewhere.
 device = torch.device("cpu")
 if torch.cuda.is_available():
-    device = torch.device("cuda:0")
+    index = 1 if args.model == "ResNet18" else 0
+    device = torch.device(f"cuda:{index}")
     torch.cuda.set_device(device)
 
                      
@@ -222,8 +223,8 @@ def dataset_by_cluster(df, df_train, num_tasks):
         df_filtered.reset_index()
         cluster = i
         try:
-            # sample,_ = train_test_split(df_filtered, train_size=args.sample, stratify=df_filtered[stratifier], random_state=7)
-            dataset = MultiTaskDatasetRandStainNA(df_filtered, task = args.classification_task, 
+            sample,_ = train_test_split(df_filtered, train_size=args.sample, stratify=df_filtered[stratifier], random_state=7)
+            dataset = MultiTaskDatasetRandStainNA(sample.reset_index(), task = args.classification_task, 
                                               testset = args.testset, cluster = cluster, crop_size = args.crop_size)
             datasets.append(dataset) 
         except Exception:
@@ -239,8 +240,8 @@ def dataset_by_mv(df, num_tasks):
     for i in range(num_tasks):
         cluster = i if args.multitask else None
         try:
-            # sample,_ = train_test_split(df, train_size=args.sample, stratify=df[stratifier], random_state=7)
-            dataset = MultiTaskDatasetRandStainNA(df, task = args.classification_task, 
+            sample,_ = train_test_split(df, train_size=args.sample, stratify=df[stratifier], random_state=7)
+            dataset = MultiTaskDatasetRandStainNA(sample.reset_index(), task = args.classification_task, 
                                               testset = args.testset, cluster = cluster, crop_size = args.crop_size)
             datasets.append(dataset) 
         except Exception:
@@ -252,7 +253,7 @@ if __name__ == '__main__':
     df = pd.read_csv("dataset/full_dataset.csv")
     df = df[df.dataset == args.testset].reset_index()
 
-    # stratifier = "labelTumor" if args.classification_task == "tumor" else "labelTIL"
+    stratifier = "labelTumor" if args.classification_task == "tumor" else "labelTIL"
     df_train = pd.read_csv(f"clustering/output/clustering_result_{args.classification_task}_{args.testset}.csv")
 
     

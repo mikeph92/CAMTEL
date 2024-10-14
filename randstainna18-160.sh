@@ -68,6 +68,7 @@ python train_randstainna2.py \
 --crop-size 96 \
 --testset 'pannuke' \
 --multitask '' 
+
 python test_randstainna2.py \
 --classification-task 'tumor' \
 --model 'ResNet18' \

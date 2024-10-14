@@ -8,3 +8,11 @@
 {"time":"2024-10-14T07:44:54.07064359Z","level":"INFO","msg":"writer: Do: started","stream_id":{"value":"giczn1i1"}}
 {"time":"2024-10-14T07:44:54.370612864Z","level":"INFO","msg":"wandb-core","!BADKEY":null}
 {"time":"2024-10-14T07:44:54.371457409Z","level":"INFO","msg":"Starting system monitor"}
+{"time":"2024-10-14T08:43:30.332070304Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/mikeph92/ColorBasedMultitask/giczn1i1/file_stream"}
+{"time":"2024-10-14T08:43:37.800138668Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/mikeph92/ColorBasedMultitask/giczn1i1/file_stream"}
+{"time":"2024-10-14T08:43:47.320445361Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/mikeph92/ColorBasedMultitask/giczn1i1/file_stream"}
+{"time":"2024-10-14T08:43:54.506102934Z","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/graphql\": context deadline exceeded"}
+{"time":"2024-10-14T08:44:26.852398492Z","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/graphql\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)"}
+{"time":"2024-10-14T10:30:45.777332767Z","level":"INFO","msg":"stream: closing","id":"giczn1i1"}
+{"time":"2024-10-14T10:30:45.777387871Z","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2024-10-14T10:30:45.781201206Z","level":"INFO","msg":"Stopped system monitor"}
