@@ -1,0 +1,30 @@
+A:
+  avg:
+    distribution: norm
+    mean: 149.013
+    std: 3.862
+  std:
+    distribution: norm
+    mean: 7.298
+    std: 1.735
+B:
+  avg:
+    distribution: norm
+    mean: 113.513
+    std: 3.67
+  std:
+    distribution: norm
+    mean: 7.883
+    std: 1.544
+L:
+  avg:
+    distribution: norm
+    mean: 161.377
+    std: 21.446
+  std:
+    distribution: norm
+    mean: 40.553
+    std: 7.259
+color_space: LAB
+methods: Reinhard
+random: true

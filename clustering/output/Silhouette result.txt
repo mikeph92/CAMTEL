@@ -1,0 +1,20 @@
+Silhouette Score for cluster of 4 for LAB: 0.20533888041973114
+Silhouette Score for cluster of 5 for LAB: 0.20011770725250244
+Silhouette Score for cluster of 6 for LAB: 0.17353250086307526
+Silhouette Score for cluster of 7 for LAB: 0.10508724302053452
+
+Silhouette Score for cluster of 4 for LAB: 0.3188275992870331
+Silhouette Score for cluster of 5 for LAB: 0.29791855812072754
+Silhouette Score for cluster of 6 for LAB: 0.3068184554576874
+Silhouette Score for cluster of 7 for LAB: 0.29281941056251526
+Silhouette Score for cluster of 8 for LAB: 0.29284197092056274
+Silhouette Score for cluster of 9 for LAB: 0.29117193818092346
+Silhouette Score for cluster of 10 for LAB: 0.29673054814338684
+
+Silhouette Score for cluster of 4 for LAB: 0.3795706033706665
+Silhouette Score for cluster of 5 for LAB: 0.3553299605846405
+Silhouette Score for cluster of 6 for LAB: 0.3800439238548279
+Silhouette Score for cluster of 7 for LAB: 0.3782235383987427
+Silhouette Score for cluster of 8 for LAB: 0.3846852779388428
+Silhouette Score for cluster of 9 for LAB: 0.36219072341918945
+Silhouette Score for cluster of 10 for LAB: 0.3710547685623169
