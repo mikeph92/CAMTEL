@@ -183,6 +183,8 @@ def test_by_mv(model, dataloaders, device):
 
     # Use torch.mode to find the most frequent prediction for each row (axis=0 for mode across loaders)
     outputs, _ = torch.mode(stacked_predictions, dim=0)
+    outputs, final_labels = outputs.to(device), final_labels.to(device)
+    
 
     # Accumulate metrics
     acc_metric(outputs, final_labels)
