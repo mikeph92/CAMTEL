@@ -23,7 +23,7 @@ parser.add_argument('--classification-task', type=str, default='tumor', help='cl
 parser.add_argument('--testset', type=str, default='ocelot', help='dataset used for testing: ocelot, pannuke, nucls (tumor) or lizard, cptacCoad, tcgaBrca, nucls (TIL)') 
 parser.add_argument('--sample-size', type=float, default='0.2')
 parser.add_argument('--multitask', type=bool, default=True, help="Enable use multitask model")
-parser.add_argument('--crop-size', type=int, default=32)
+parser.add_argument('--crop-size', type=int, default=48)
 parser.add_argument('--model', type=str, default="ResNet18", help="backbone ResNet18 or ResNet50")
 
 
@@ -233,7 +233,7 @@ if __name__ == '__main__':
         model = MultiTaskResNet18(num_tasks=num_tasks, retrain = True)
 
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
-    batch_size = 64
+    batch_size = 96
     n_epochs = 10
     class_names = ["non-tumor", "tumor"] if args.classification_task == "tumor" else ["non-TIL", "TIL"]
     train_split = 0.8

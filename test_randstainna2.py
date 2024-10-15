@@ -29,7 +29,7 @@ parser.add_argument('--testset', type=str, default='ocelot', help='dataset used 
 parser.add_argument('--multitask', type=bool, default=True, help="Enable use multitask model")
 parser.add_argument('--test-method', type=str, default='cluster', help='') 
 parser.add_argument('--sample', type=float, default='0.5')
-parser.add_argument('--crop-size', type=int, default=32)
+parser.add_argument('--crop-size', type=int, default=48)
 parser.add_argument('--model', type=str, default="ResNet18", help="backbone ResNet18 or ResNet50")
 
 args = parser.parse_args()
@@ -202,6 +202,7 @@ def test_by_mv(model, dataloaders, device):
     cm = confusion_matrix.compute().cpu().numpy()
 
     return metrics_dict, cm
+
 def dataset_by_cluster(df, df_train, num_tasks):
     scaler, predictor = predict_cluster(df_train)
 
@@ -262,7 +263,7 @@ if __name__ == '__main__':
     if args.multitask:
         num_tasks  = len(df_train.labelCluster.unique())  #number of clustes in dataset and number of heads in multitask model
 
-    batch_size = 64
+    batch_size = 96
 
     # load saved model
     model_files = glob.glob(f'saved_models/randstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}*')
@@ -283,11 +284,11 @@ if __name__ == '__main__':
             dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers = 2)
             test_metrics_dict, cm = test_by_cluster(model, dataloader, df_test, device)
         elif args.test_method == "mv":          # majority vote
-            datasets, df_test = dataset_by_mv(df, num_tasks)
+            datasets = dataset_by_mv(df, num_tasks)
             dataloaders = [DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers = 2) for dataset in datasets]
             test_metrics_dict, cm = test_by_mv(model, dataloaders, device)
     else:
-        datasets, df_test = dataset_by_mv(df, num_tasks)
+        datasets = dataset_by_mv(df, num_tasks)
         dataloaders = [DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers = 2) for dataset in datasets]
         test_metrics_dict, cm = test_by_mv(model, dataloaders, device)
 
