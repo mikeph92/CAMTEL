@@ -29,7 +29,7 @@ parser.add_argument('--testset', type=str, default='ocelot', help='dataset used 
 parser.add_argument('--multitask', type=bool, default=True, help="Enable use multitask model")
 parser.add_argument('--test-method', type=str, default='cluster', help='') 
 parser.add_argument('--sample', type=float, default='0.5')
-parser.add_argument('--crop-size', type=int, default=48)
+parser.add_argument('--crop-size', type=int, default=32)
 parser.add_argument('--model', type=str, default="ResNet18", help="backbone ResNet18 or ResNet50")
 
 args = parser.parse_args()
