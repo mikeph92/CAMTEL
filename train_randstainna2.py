@@ -1,4 +1,4 @@
-from datetime import datetime
+  from datetime import datetime
 import numpy as np
 import torch
 import torch.nn as nn
@@ -21,9 +21,9 @@ import matplotlib.pyplot as plt
 parser = argparse.ArgumentParser(description='clustering')
 parser.add_argument('--classification-task', type=str, default='tumor', help='classification task: tumor or TIL') 
 parser.add_argument('--testset', type=str, default='ocelot', help='dataset used for testing: ocelot, pannuke, nucls (tumor) or lizard, cptacCoad, tcgaBrca, nucls (TIL)') 
-parser.add_argument('--sample-size', type=float, default='0.2')
+parser.add_argument('--sample-size', type=float, default='0.3')
 parser.add_argument('--multitask', type=bool, default=True, help="Enable use multitask model")
-parser.add_argument('--crop-size', type=int, default=32)
+parser.add_argument('--crop-size', type=int, default=48)
 parser.add_argument('--model', type=str, default="ResNet18", help="backbone ResNet18 or ResNet50")
 
 
@@ -196,34 +196,30 @@ if __name__ == '__main__':
     weights = []
 
     num_tasks = 1                # use with single head model
-    df_filtered = df.copy()
-
-    if args.multitask:    # else use multihead model
-        num_tasks  = len(df.labelCluster.unique())  #number of clustes in dataset and number of heads in multitask model
 
 
-    for i in range(num_tasks):
-        if args.multitask:
-            df_filtered = df[df.labelCluster == i].reset_index()
-        
-        sample,_ = train_test_split(df_filtered, train_size=args.sample_size, stratify=df_filtered[stratifier], random_state=7)
-
-        dataset = []
+    if not args.multitask:
+        sample,_ = train_test_split(df, train_size=args.sample_size, stratify=df[stratifier], random_state=7)
         cluster = None
-        dataset_cluster = MultiTaskDatasetRandStainNA(sample.reset_index(), task = args.classification_task, 
-                                              testset = args.testset, cluster = cluster, crop_size = args.crop_size)
-        dataset.append(dataset_cluster)
-        w = torch.tensor([dataset_cluster.pos_weight], dtype=torch.float32, device=device)
-
-        if args.multitask:
-            for j in range(num_tasks):
-                cluster = i
-                dataset_cluster = MultiTaskDatasetRandStainNA(sample.reset_index(), task = args.classification_task, 
-                                              testset = args.testset, cluster = cluster, crop_size = args.crop_size)
-                dataset.append(dataset_cluster)
-        dataset = ConcatDataset(dataset)
+        dataset = MultiTaskDatasetRandStainNA(sample.reset_index(), task = args.classification_task, 
+                                            testset = args.testset, cluster = cluster, crop_size = args.crop_size)
         datasets.append(dataset)
+        w = torch.tensor([dataset.pos_weight], dtype=torch.float32, device=device)
         weights.append(w)
+    else:
+        num_tasks  = len(df.labelCluster.unique())  #number of clustes in dataset and number of heads in multitask model
+        for i in range(num_tasks):
+            clusters_chosen = np.random.choice(range(num_tasks),3,replace=False)
+
+            df_filtered = df[df.labelCluster.isin(clusters_chosen)].reset_index()
+            sample,_ = train_test_split(df_filtered, train_size=args.sample_size, stratify=df_filtered[stratifier], random_state=7)
+            
+            dataset = MultiTaskDatasetRandStainNA(sample.reset_index(), task = args.classification_task, 
+                                            testset = args.testset, cluster = i, crop_size = args.crop_size)
+            w = torch.tensor([dataset.pos_weight], dtype=torch.float32, device=device)
+                
+            datasets.append(dataset)
+            weights.append(w)
 
 
     # Instantiate the model

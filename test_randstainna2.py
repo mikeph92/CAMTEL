@@ -28,8 +28,8 @@ parser.add_argument('--classification-task', type=str, default='tumor', help='cl
 parser.add_argument('--testset', type=str, default='ocelot', help='dataset used for testing: ocelot, pannuke, nucls (tumor) or lizard, cptacCoad, tcgaBrca, nucls (TIL)') 
 parser.add_argument('--multitask', type=bool, default=True, help="Enable use multitask model")
 parser.add_argument('--test-method', type=str, default='cluster', help='') 
-parser.add_argument('--sample', type=float, default='0.5')
-parser.add_argument('--crop-size', type=int, default=32)
+parser.add_argument('--sample', type=float, default='0.2')
+parser.add_argument('--crop-size', type=int, default=48)
 parser.add_argument('--model', type=str, default="ResNet18", help="backbone ResNet18 or ResNet50")
 
 args = parser.parse_args()
@@ -226,8 +226,8 @@ def dataset_by_cluster(df, df_train, num_tasks):
         df_filtered.reset_index()
         cluster = i
         try:
-            sample,_ = train_test_split(df_filtered, train_size=args.sample, stratify=df_filtered[stratifier], random_state=7)
-            dataset = MultiTaskDatasetRandStainNA(sample.reset_index(), task = args.classification_task, 
+            # sample,_ = train_test_split(df_filtered, train_size=args.sample, stratify=df_filtered[stratifier], random_state=7)
+            dataset = MultiTaskDatasetRandStainNA(df_filtered, task = args.classification_task, 
                                               testset = args.testset, cluster = cluster, crop_size = args.crop_size)
             datasets.append(dataset) 
         except Exception:
