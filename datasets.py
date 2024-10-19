@@ -7,7 +7,6 @@ import numpy as np
 import torch
 import torchvision.transforms as transforms
 from PIL import Image
-import cv2
 from torch.utils.data import Dataset
 from randstainna import RandStainNA
 
@@ -51,15 +50,15 @@ class MultiTaskDataset(Dataset):
     def __getitem__(self, idx):
         img_name = self.img_names[idx]
         img_path = get_path(self.datasets[idx], img_name,self.datatype)
-        full_img = cv2.imread(img_path)
+        full_img = Image.open(img_path)
         if self.datasets[idx] == "lizard":
             crop_size = int(self.crop_size/2)           #lizard dataset has x20 magnification instead of x40
             crop_box = (self.centerXs[idx]-crop_size/2,self.centerYs[idx]-crop_size/2, self.centerXs[idx]+crop_size/2, self.centerYs[idx]+crop_size/2)
-            image = full_img[crop_box[2]:crop_box[3], crop_box[0]:crop_box[1]]
-            image = cv2.resize(image,(crop_size, crop_size), interpolation=cv2.INTER_CUBIC) #resize into standard size to fix with other datasets
+            image = full_img.crop(crop_box)
+            image = image.resize((self.crop_size, self.crop_size), Image.BICUBIC)       #resize into standard size to fix with other datasets
         else:
             crop_box = (self.centerXs[idx]-self.crop_size/2,self.centerYs[idx]-self.crop_size/2, self.centerXs[idx]+self.crop_size/2, self.centerYs[idx]+self.crop_size/2)
-            image = full_img[crop_box[2]:crop_box[3], crop_box[0]:crop_box[1]]
+            image = full_img.crop(crop_box)
 
         image = self.transform(image)
 
@@ -101,17 +100,17 @@ class MultiTaskDatasetRandStainNA(Dataset):
         img_name = self.img_names[idx]
         dataset = self.datasets[idx]
         img_path = get_path(dataset, img_name,self.datatype)
-        full_img = cv2.imread(img_path)
-        if self.datasets[idx] == "lizard":
+        full_img = Image.open(img_path)
+        if dataset == "lizard":
             crop_size = int(self.crop_size/2)           #lizard dataset has x20 magnification instead of x40
             crop_box = (self.centerXs[idx]-crop_size/2,self.centerYs[idx]-crop_size/2, self.centerXs[idx]+crop_size/2, self.centerYs[idx]+crop_size/2)
-            image = full_img[crop_box[2]:crop_box[3], crop_box[0]:crop_box[1]]
-            image = cv2.resize(image,(crop_size, crop_size), interpolation=cv2.INTER_CUBIC) #resize into standard size to fix with other datasets
+            image = full_img.crop(crop_box)
+            image = image.resize((self.crop_size, self.crop_size), Image.BICUBIC)       #resize into standard size to fix with other datasets
         else:
             crop_box = (self.centerXs[idx]-self.crop_size/2,self.centerYs[idx]-self.crop_size/2, self.centerXs[idx]+self.crop_size/2, self.centerYs[idx]+self.crop_size/2)
-            image = full_img[crop_box[2]:crop_box[3], crop_box[0]:crop_box[1]]
+            image = full_img.crop(crop_box)
 
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = self.transform(image.convert('RGB'))
 
         label = self.labels[idx]
         
