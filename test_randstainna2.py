@@ -5,6 +5,7 @@ import torch.nn as nn
 import tqdm.notebook as tq
 import wandb
 import torchmetrics
+from sklearn.metrics import roc_curve
 from torch.utils.data import DataLoader, ConcatDataset
 from sklearn.model_selection import train_test_split
 from datasets import MultiTaskDatasetRandStainNA
@@ -86,6 +87,12 @@ def predict_cluster(df):
     clf.fit(X_train, y_train)
     return scaler, clf
 
+def calculate_optimal_threshold(labels, outputs):
+    fpr, tpr, thresholds = roc_curve(labels.cpu().numpy(), outputs.cpu().numpy())
+    optimal_idx = np.argmax(tpr - fpr)  # Youden's index
+    optimal_threshold = thresholds[optimal_idx]
+    return optimal_threshold
+
 def test_by_cluster(model, dataloader, df_test, device):
     '''
     Evaluate the model on the entire test set.
@@ -95,38 +102,56 @@ def test_by_cluster(model, dataloader, df_test, device):
     # Initialize metrics
     acc_metric = torchmetrics.classification.BinaryAccuracy().to(device)
     uar_metric = torchmetrics.classification.BinaryRecall().to(device)
+    f1_metric = torchmetrics.F1Score().to(device)
+    roc_auc_metric = torchmetrics.AUROC().to(device)
     
     # initialize a confusion matrix torchmetrics object
     confusion_matrix = torchmetrics.classification.BinaryConfusionMatrix().to(device)
 
+    all_outputs = []
+    all_labels = []
+
     with torch.no_grad():
 
-        for images, labels, img_names, datasets in dataloader:
+        for images, labels, img_names in dataloader:
             images, labels = images.to(device), labels.to(device).float()
 
-            outputs = []
-            for idx, img in enumerate(images):
-                img_data = df_test[(df_test.img_name == img_names[idx]) & (df_test.dataset == datasets[idx])]
-                cluster = img_data.iloc[0]['labelCluster']                
+            clusters = images.apply(
+                lambda row: df_test[df_test.img_name == row['img_name']]['labelCluster'].iloc[0],
+                axis=1
+            ).to_numpy()
 
-                output = model(img.unsqueeze(0))[cluster]
-                predict = 1.0 if output > 0.5 else 0.0
-                outputs.append(predict) 
+            outputs = torch.zeros(len(images), dtype=torch.float32).to(device)
+            for cluster in np.unique(clusters):
+                # Select indices for each cluster
+                cluster_indices = np.where(clusters == cluster)[0]
                 
+                # Perform batch prediction for images in this cluster
+                cluster_images = images[cluster_indices]
+                cluster_outputs = model(cluster_images)[cluster]
+                outputs[cluster_indices] = cluster_outputs.squeeze()
 
-            outputs = torch.tensor(outputs, dtype=torch.float32).to(device)
-            # Accumulate metrics
-            acc_metric(outputs, labels)
-            uar_metric(outputs, labels)
+            all_outputs.append(outputs.cpu().numpy())
+            all_labels.append(labels.cpu().numpy())
+
+        all_outputs = torch.tensor(np.concatenate(all_outputs))
+        all_labels = torch.tensor(np.concatenate(all_labels))
+
+        optimal_threshold = calculate_optimal_threshold(all_labels, all_outputs)
         
-            # acculmate confusion matrix 
-            confusion_matrix(outputs, labels)
+        acc_metric((all_outputs > optimal_threshold).int(), all_labels)
+        uar_metric((all_outputs > optimal_threshold).int(), all_labels)
+        f1_metric((all_outputs > optimal_threshold).int(), all_labels)
+        roc_auc_metric(all_outputs, all_labels)  # ROC-AUC uses raw sigmoid values
+        confusion_matrix((all_outputs > optimal_threshold).int(), all_labels)
 
          
     # Calculate epoch metrics, and store in a dictionary for wandb
     metrics_dict = {
         'Accuracy_test': acc_metric.compute(),
         'UAR_test': uar_metric.compute(),
+        'F1_test': f1_metric.compute(),
+        'AUC_ROC_test': roc_auc_metric.compute(),
     }
 
     # Compute the confusion matrix
@@ -139,16 +164,13 @@ def predict_with_model_and_labels(model, dataloader, task_index, device):
     all_labels = []
     
     with torch.no_grad():  # No need to compute gradients for inference
-        for images, labels, _, _ in dataloader:  # Get both images and labels
+        for images, labels, _ in dataloader:  # Get both images and labels
             images = images.to(device)  # Move images to the GPU
             labels = labels.to(device)  # Move labels to the GPU for accuracy calculation
             
             outputs = model(images)[task_index]  # Assuming outputs are probabilities (sigmoid or softmax)
             
-            # Apply threshold of 0.5 to convert probabilities to class predictions
-            preds = (outputs > 0.5).int().squeeze()  # Binary: 1 if prob > 0.5 else 0
-            
-            all_preds.append(preds.cpu())  # Move predictions back to the CPU and store
+            all_preds.append(outputs.squeeze().cpu())  # Move predictions back to the CPU and store
             all_labels.append(labels.cpu())  # Move labels back to the CPU and store
 
     # Concatenate all predictions and labels into a single tensor (m,)
@@ -161,13 +183,15 @@ def test_by_mv(model, dataloaders, device):
     # Initialize metrics
     acc_metric = torchmetrics.classification.BinaryAccuracy().to(device)
     uar_metric = torchmetrics.classification.BinaryRecall().to(device)
+    f1_metric = torchmetrics.F1Score().to(device)
+    roc_auc_metric = torchmetrics.AUROC().to(device)
     
     # initialize a confusion matrix torchmetrics object
     confusion_matrix = torchmetrics.classification.BinaryConfusionMatrix().to(device)
 
     # List to store predictions from all n dataloaders
     all_predictions = []
-    final_labels = None  # To store the true labels once
+    final_labels = None
 
     # Iterate over all n dataloaders and get the predictions and labels
     for i, dataloader in enumerate(dataloaders):
@@ -185,19 +209,21 @@ def test_by_mv(model, dataloaders, device):
     outputs, _ = torch.mode(stacked_predictions, dim=0)
     outputs, final_labels = outputs.to(device), final_labels.to(device)
     
-
-    # Accumulate metrics
-    acc_metric(outputs, final_labels)
-    uar_metric(outputs, final_labels)
-
-    # acculmate confusion matrix 
-    confusion_matrix(outputs, final_labels)
+    optimal_threshold = calculate_optimal_threshold(final_labels, outputs)
+        
+    acc_metric((outputs > optimal_threshold).int(), final_labels)
+    uar_metric((outputs > optimal_threshold).int(), final_labels)
+    f1_metric((outputs > optimal_threshold).int(), final_labels)
+    roc_auc_metric(outputs, final_labels)  # ROC-AUC uses raw sigmoid values
+    confusion_matrix((outputs > optimal_threshold).int(), final_labels)
 
          
     # Calculate epoch metrics, and store in a dictionary for wandb
     metrics_dict = {
         'Accuracy_test': acc_metric.compute(),
         'UAR_test': uar_metric.compute(),
+        'F1_test': f1_metric.compute(),
+        'AUC_ROC_test': roc_auc_metric.compute(),
     }
 
     # Compute the confusion matrix
@@ -282,15 +308,15 @@ if __name__ == '__main__':
     if args.multitask:
         if args.test_method == "cluster":       #test by most similar cluster
             dataset, df_test = dataset_by_cluster(df, df_train, num_tasks)
-            dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers = 2)
+            dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers = 4, pin_memory = True)
             test_metrics_dict, cm = test_by_cluster(model, dataloader, df_test, device)
         elif args.test_method == "mv":          # majority vote
             datasets = dataset_by_mv(df, num_tasks)
-            dataloaders = [DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers = 2) for dataset in datasets]
+            dataloaders = [DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers = 4, pin_memory = True) for dataset in datasets]
             test_metrics_dict, cm = test_by_mv(model, dataloaders, device)
     else:
         datasets = dataset_by_mv(df, num_tasks)
-        dataloaders = [DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers = 2) for dataset in datasets]
+        dataloaders = [DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers = 4, pin_memory = True) for dataset in datasets]
         test_metrics_dict, cm = test_by_mv(model, dataloaders, device)
 
 

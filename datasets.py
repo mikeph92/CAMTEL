@@ -114,5 +114,5 @@ class MultiTaskDatasetRandStainNA(Dataset):
 
         label = self.labels[idx]
         
-        return image, label, img_name, dataset
+        return image, label, img_name
 

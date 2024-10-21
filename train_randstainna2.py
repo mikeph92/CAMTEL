@@ -81,7 +81,7 @@ def train_epoch(model, optimizer, weights, dataloaders,  num_tasks, device):
     for task_idx in range(num_tasks):
         criterion = nn.BCEWithLogitsLoss(pos_weight = weights[task_idx])
 
-        for images, labels, _, _ in dataloaders[task_idx]['train']:
+        for images, labels, _ in dataloaders[task_idx]['train']:
             images, labels = images.to(device), labels.to(device).float()
 
             optimizer.zero_grad()
@@ -126,7 +126,7 @@ def val_epoch(model, weights, dataloaders, num_tasks, device):
         for task_idx in range(num_tasks):
             criterion = nn.BCEWithLogitsLoss(pos_weight = weights[task_idx])
 
-            for images, labels, _, _ in dataloaders[task_idx]['val']:
+            for images, labels, _ in dataloaders[task_idx]['val']:
                 images, labels = images.to(device), labels.to(device).float()
                 outputs = model(images)[task_idx].squeeze()
                 loss = criterion(outputs, labels)
@@ -209,7 +209,7 @@ if __name__ == '__main__':
     else:
         num_tasks  = len(df.labelCluster.unique())  #number of clustes in dataset and number of heads in multitask model
         for i in range(num_tasks):
-            clusters_chosen = np.random.choice(range(num_tasks),4,replace=False)
+            clusters_chosen = [i] #np.random.choice(range(num_tasks),4,replace=False)
 
             df_filtered = df[df.labelCluster.isin(clusters_chosen)].reset_index()
             sample,_ = train_test_split(df_filtered, train_size=args.sample_size, stratify=df_filtered[stratifier], random_state=7)
