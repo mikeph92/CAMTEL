@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 parser = argparse.ArgumentParser(description='clustering')
 parser.add_argument('--classification-task', type=str, default='tumor', help='classification task: tumor or TIL') 
 parser.add_argument('--testset', type=str, default='ocelot', help='dataset used for testing: ocelot, pannuke, nucls (tumor) or lizard, cptacCoad, tcgaBrca, nucls (TIL)') 
-parser.add_argument('--sample-size', type=float, default='0.3')
+parser.add_argument('--sample-size', type=float, default='0.9')
 parser.add_argument('--multitask', type=bool, default=True, help="Enable use multitask model")
 parser.add_argument('--crop-size', type=int, default=48)
 parser.add_argument('--model', type=str, default="ResNet18", help="backbone ResNet18 or ResNet50")
@@ -32,7 +32,7 @@ args = parser.parse_args()
 # initiate wandb
 project_name = "ColorBasedMultitask-train-full"
 multitask = "Multitask" if args.multitask else "Single"
-exp_name = f"randstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+exp_name = f"FULL-randstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 run = wandb.init(project=project_name, name=exp_name)
 
 # Determine which device on import, and then use that elsewhere.
@@ -209,7 +209,7 @@ if __name__ == '__main__':
     else:
         num_tasks  = len(df.labelCluster.unique())  #number of clustes in dataset and number of heads in multitask model
         for i in range(num_tasks):
-            clusters_chosen = np.random.choice(range(num_tasks),3,replace=False)
+            clusters_chosen = np.random.choice(range(num_tasks),4,replace=False)
 
             df_filtered = df[df.labelCluster.isin(clusters_chosen)].reset_index()
             sample,_ = train_test_split(df_filtered, train_size=args.sample_size, stratify=df_filtered[stratifier], random_state=7)

@@ -28,14 +28,14 @@ parser.add_argument('--classification-task', type=str, default='tumor', help='cl
 parser.add_argument('--testset', type=str, default='ocelot', help='dataset used for testing: ocelot, pannuke, nucls (tumor) or lizard, cptacCoad, tcgaBrca, nucls (TIL)') 
 parser.add_argument('--multitask', type=bool, default=True, help="Enable use multitask model")
 parser.add_argument('--test-method', type=str, default='cluster', help='') 
-parser.add_argument('--sample', type=float, default='0.2')
+parser.add_argument('--sample', type=float, default='0.9')
 parser.add_argument('--crop-size', type=int, default=48)
 parser.add_argument('--model', type=str, default="ResNet18", help="backbone ResNet18 or ResNet50")
 
 args = parser.parse_args()
 
 # initiate wandb
-project_name = f"ColorBasedMultitask-Test-{args.crop_size}-{args.model}-RandStainNA"
+project_name = f"FULL-ColorBasedMultitask-Test-{args.crop_size}-{args.model}-RandStainNA"
 multitask = "Multitask" if args.multitask else "Single"
 method = "" if not args.multitask else f'_{args.test_method}'
 exp_name = f"{args.classification_task}_{args.testset}_{multitask}{method}"
@@ -223,11 +223,10 @@ def dataset_by_cluster(df, df_train, num_tasks):
 
     for i in range(num_tasks):
         df_filtered = df_merged_filtered[df_merged_filtered.labelCluster == i]
-        df_filtered.reset_index()
         cluster = i
         try:
             # sample,_ = train_test_split(df_filtered, train_size=args.sample, stratify=df_filtered[stratifier], random_state=7)
-            dataset = MultiTaskDatasetRandStainNA(df_filtered, task = args.classification_task, 
+            dataset = MultiTaskDatasetRandStainNA(df_filtered.reset_index(), task = args.classification_task, 
                                               testset = args.testset, cluster = cluster, crop_size = args.crop_size)
             datasets.append(dataset) 
         except Exception:
@@ -268,7 +267,7 @@ if __name__ == '__main__':
     batch_size = 96
 
     # load saved model
-    model_files = glob.glob(f'saved_models/randstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}*')
+    model_files = glob.glob(f'saved_models/FULL-randstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}*')
     state_dict = torch.load(model_files[0])
 
     if args.model == "ResNet50":
