@@ -1,7 +1,7 @@
-python train_randstainna2.py \
---classification-task 'TIL' \
---model "ResNet50" \
---testset 'lizard'
+# python train_randstainna2.py \
+# --classification-task 'TIL' \
+# --model "ResNet50" \
+# --testset 'lizard'
 
 python test_randstainna2.py \
 --classification-task 'TIL' \
@@ -15,10 +15,10 @@ python test_randstainna2.py \
 --testset 'lizard' 
 
 ##########################################
-python train_randstainna2.py \
---classification-task 'TIL' \
---model "ResNet50" \
---testset 'cptacCoad' 
+# python train_randstainna2.py \
+# --classification-task 'TIL' \
+# --model "ResNet50" \
+# --testset 'cptacCoad' 
 
 python test_randstainna2.py \
 --classification-task 'TIL' \

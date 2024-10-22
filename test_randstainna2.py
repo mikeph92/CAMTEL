@@ -102,8 +102,8 @@ def test_by_cluster(model, dataloader, df_test, device):
     # Initialize metrics
     acc_metric = torchmetrics.classification.BinaryAccuracy().to(device)
     uar_metric = torchmetrics.classification.BinaryRecall().to(device)
-    f1_metric = torchmetrics.F1Score().to(device)
-    roc_auc_metric = torchmetrics.AUROC().to(device)
+    f1_metric = torchmetrics.F1Score(task="binary").to(device)
+    roc_auc_metric = torchmetrics.AUROC(task="binary").to(device)
     
     # initialize a confusion matrix torchmetrics object
     confusion_matrix = torchmetrics.classification.BinaryConfusionMatrix().to(device)
@@ -116,10 +116,8 @@ def test_by_cluster(model, dataloader, df_test, device):
         for images, labels, img_names in dataloader:
             images, labels = images.to(device), labels.to(device).float()
 
-            clusters = images.apply(
-                lambda row: df_test[df_test.img_name == row['img_name']]['labelCluster'].iloc[0],
-                axis=1
-            ).to_numpy()
+            clusters = np.array([df_test.loc[df_test.img_name == img_name, 'labelCluster'].iloc[0] for img_name in img_names])
+
 
             outputs = torch.zeros(len(images), dtype=torch.float32).to(device)
             for cluster in np.unique(clusters):
@@ -138,6 +136,12 @@ def test_by_cluster(model, dataloader, df_test, device):
         all_labels = torch.tensor(np.concatenate(all_labels))
 
         optimal_threshold = calculate_optimal_threshold(all_labels, all_outputs)
+
+        if outputs.device != device:
+            outputs = outputs.to(device)
+        if final_labels.device != device:
+            final_labels = final_labels.to(device)
+        optimal_threshold = torch.tensor(optimal_threshold, device=device)
         
         acc_metric((all_outputs > optimal_threshold).int(), all_labels)
         uar_metric((all_outputs > optimal_threshold).int(), all_labels)
@@ -170,7 +174,10 @@ def predict_with_model_and_labels(model, dataloader, task_index, device):
             
             outputs = model(images)[task_index]  # Assuming outputs are probabilities (sigmoid or softmax)
             
-            all_preds.append(outputs.squeeze().cpu())  # Move predictions back to the CPU and store
+            # Apply threshold of 0.5 to convert probabilities to class predictions
+            preds = (outputs > 0.5).int().squeeze()  # Binary: 1 if prob > 0.5 else 0
+            
+            all_preds.append(preds.cpu())  # Move predictions back to the CPU and store
             all_labels.append(labels.cpu())  # Move labels back to the CPU and store
 
     # Concatenate all predictions and labels into a single tensor (m,)
@@ -183,15 +190,15 @@ def test_by_mv(model, dataloaders, device):
     # Initialize metrics
     acc_metric = torchmetrics.classification.BinaryAccuracy().to(device)
     uar_metric = torchmetrics.classification.BinaryRecall().to(device)
-    f1_metric = torchmetrics.F1Score().to(device)
-    roc_auc_metric = torchmetrics.AUROC().to(device)
+    f1_metric = torchmetrics.F1Score(task="binary").to(device)
+    roc_auc_metric = torchmetrics.AUROC(task="binary").to(device)
     
     # initialize a confusion matrix torchmetrics object
     confusion_matrix = torchmetrics.classification.BinaryConfusionMatrix().to(device)
 
     # List to store predictions from all n dataloaders
     all_predictions = []
-    final_labels = None
+    final_labels = None  # To store the true labels once
 
     # Iterate over all n dataloaders and get the predictions and labels
     for i, dataloader in enumerate(dataloaders):
@@ -207,15 +214,18 @@ def test_by_mv(model, dataloaders, device):
 
     # Use torch.mode to find the most frequent prediction for each row (axis=0 for mode across loaders)
     outputs, _ = torch.mode(stacked_predictions, dim=0)
-    outputs, final_labels = outputs.to(device), final_labels.to(device)
-    
-    optimal_threshold = calculate_optimal_threshold(final_labels, outputs)
+
+    if outputs.device != device:
+        outputs = outputs.to(device)
+    if final_labels.device != device:
+        final_labels = final_labels.to(device)
         
-    acc_metric((outputs > optimal_threshold).int(), final_labels)
-    uar_metric((outputs > optimal_threshold).int(), final_labels)
-    f1_metric((outputs > optimal_threshold).int(), final_labels)
-    roc_auc_metric(outputs, final_labels)  # ROC-AUC uses raw sigmoid values
-    confusion_matrix((outputs > optimal_threshold).int(), final_labels)
+    # Accumulate metrics
+    acc_metric(outputs, final_labels)
+    uar_metric(outputs, final_labels)
+    f1_metric(outputs, final_labels)
+    roc_auc_metric(outputs, final_labels)
+    confusion_matrix(outputs, final_labels)
 
          
     # Calculate epoch metrics, and store in a dictionary for wandb

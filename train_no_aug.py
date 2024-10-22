@@ -20,26 +20,27 @@ import matplotlib.pyplot as plt
 parser = argparse.ArgumentParser(description='clustering')
 parser.add_argument('--classification-task', type=str, default='tumor', help='classification task: tumor or TIL') 
 parser.add_argument('--testset', type=str, default='ocelot', help='dataset used for testing: ocelot, pannuke, nucls (tumor) or lizard, cptacCoad, tcgaBrca, nucls (TIL)') 
-parser.add_argument('--sample-size', type=float, default='0.05')
+parser.add_argument('--sample-size', type=float, default='0.9')
 parser.add_argument('--retrain', type=bool, default=True, help="Enable retrain base model")
 parser.add_argument('--multitask', type=bool, default=True, help="Enable use multitask model")
-parser.add_argument('--crop-size', type=int, default=32)
+parser.add_argument('--crop-size', type=int, default=48)
 parser.add_argument('--model', type=str, default="ResNet18", help="backbone ResNet18 or ResNet50")
 
 
 args = parser.parse_args()
 
 # initiate wandb
-project_name = "ColorBasedMultitask-train"
+project_name = "ColorBasedMultitask-full"
 multitask = "Multitask" if args.multitask else "Single"
 retrain =  "Retrained" if args.retrain else "Pretrained"
-exp_name = f"{args.crop_size}_{multitask}_no-aug_{args.model}_{args.classification_task}_{args.testset}{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+exp_name = f"FULL-{args.crop_size}_{multitask}_no-aug_{args.model}_{args.classification_task}_{args.testset}{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 run = wandb.init(project=project_name, name=exp_name)
 
 # Determine which device on import, and then use that elsewhere.
 device = torch.device("cpu")
 if torch.cuda.is_available():
-    device = torch.device("cuda:0")
+    index = 1 if args.model == "ResNet18" else 0
+    device = torch.device(f"cuda:{index}")
     torch.cuda.set_device(device)
 
 def plot_confusion_matrix(cm, class_names):
@@ -49,25 +50,13 @@ def plot_confusion_matrix(cm, class_names):
     '''
 
     # this normalizes the confusion matrix
-    cm = cm.astype(np.float32) / cm.sum(axis=1)[:, None]
+    with np.errstate(divide='ignore', invalid='ignore'):
+        cm_normalized = cm.astype(np.float32) / cm.sum(axis=1, keepdims=True)
+        cm_normalized = np.nan_to_num(cm_normalized)
     
-    df_cm = pd.DataFrame(cm, class_names, class_names)
-    ax = sn.heatmap(df_cm, annot=True, cmap='flare', fmt='.2f')
-
-    ax.set_xlabel('Predicted')
-    ax.set_ylabel('True')
-
-    plt.savefig(f'plots/{exp_name}.png')
+    df_cm = pd.DataFrame(cm_normalized, class_names, class_names)
+    print(df_cm)
     
-def count_classes(preds):
-    '''
-    Counts the number of predictions per class given preds, a tensor
-    shaped [batch, n_classes], where the maximum per preds[i]
-    is considered the "predicted class" for batch element i.
-    '''
-    pred_classes = preds.argmax(dim=1)
-    n_classes = preds.shape[1]
-    return [(pred_classes == c).sum().item() for c in range(n_classes)]
 
 def train_epoch(model, optimizer, weights, dataloaders,  num_tasks, device):
 
@@ -198,7 +187,7 @@ if __name__ == '__main__':
     weights = []
 
     num_tasks = 1                # use with single head model
-    df_filtered = df.copy()
+    df_filtered = df.copy().reset_index()
 
     if args.multitask:    # else use multihead model
         num_tasks  = len(df.labelCluster.unique())  #number of clustes in dataset and number of heads in multitask model
@@ -223,7 +212,7 @@ if __name__ == '__main__':
     else:
         model = MultiTaskResNet18(num_tasks=num_tasks, retrain = True)
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
-    batch_size = 32
+    batch_size = 64
     n_epochs = 10
     class_names = ["non-tumor", "tumor"] if args.classification_task == "tumor" else ["non-TIL", "TIL"]
     train_split = 0.8
@@ -237,8 +226,8 @@ if __name__ == '__main__':
         train_dataset, val_dataset = random_split(dataset, [train_size, val_size], generator = generator)        
 
         dataloaders[task_idx] = {
-            'train': DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True),
-            'val': DataLoader(val_dataset, batch_size=batch_size, shuffle=False, drop_last=True)
+            'train': DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers = 2, pin_memory = True),
+            'val': DataLoader(val_dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers = 2, pin_memory = True)
         }
     
     train_model(model, dataloaders, optimizer, weights, n_epochs, device, class_names)

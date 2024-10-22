@@ -5,10 +5,11 @@ import torch.nn as nn
 import tqdm.notebook as tq
 import wandb
 import torchmetrics
+from sklearn.metrics import roc_curve
 from torch.utils.data import DataLoader, random_split
 from sklearn.model_selection import train_test_split
 from datasets import MultiTaskDataset
-from models import MultiTaskEfficientNet, MultiTaskResNet50,  MultiTaskResNet18
+from models import MultiTaskResNet50,  MultiTaskResNet18
 import torch.optim as optim
 import argparse
 import glob
@@ -27,15 +28,15 @@ parser.add_argument('--classification-task', type=str, default='tumor', help='cl
 parser.add_argument('--testset', type=str, default='ocelot', help='dataset used for testing: ocelot, pannuke, nucls (tumor) or lizard, cptacCoad, tcgaBrca, nucls (TIL)') 
 parser.add_argument('--multitask', type=bool, default=True, help="Enable use multitask model")
 parser.add_argument('--test-method', type=str, default='cluster', help='') 
-parser.add_argument('--sample', type=float, default='0.5')
-parser.add_argument('--crop-size', type=int, default=64)
+parser.add_argument('--sample', type=float, default='0.9')
+parser.add_argument('--crop-size', type=int, default=48)
 parser.add_argument('--model', type=str, default="ResNet18", help="backbone ResNet18 or ResNet50")
 
 
 args = parser.parse_args()
 
 # initiate wandb
-project_name = f"ColorBasedMultitask-Test-{args.crop_size}-{args.model}-no-aug"
+project_name = f"FULL-ColorBasedMultitask-Test-{args.crop_size}-{args.model}-no-aug"
 multitask = "Multitask" if args.multitask else "Single"
 method = "" if not args.multitask else f'_{args.test_method}'
 exp_name = f"{args.classification_task}_{args.testset}_{multitask}{method}"
@@ -44,7 +45,8 @@ run = wandb.init(project=project_name, name=exp_name)
 # Determine which device on import, and then use that elsewhere.
 device = torch.device("cpu")
 if torch.cuda.is_available():
-    device = torch.device("cuda:0")
+    index = 1 if args.model == "ResNet18" else 0
+    device = torch.device(f"cuda:{index}")
     torch.cuda.set_device(device)
 
                      
@@ -69,27 +71,6 @@ def plot_confusion_matrix(cm, class_names):
 
     # plt.savefig(f'plots/{exp_name}.png')
 
-# def reverse_normalize(tensor):
-#     mean = torch.tensor([0.485, 0.456, 0.406])
-#     std = torch.tensor([0.229, 0.224, 0.225])
-#     # If the tensor has been normalized, we reverse it
-#     # tensor.mul_(std).add_(mean) would re-normalize, so we reverse it:
-#     for t, m, s in zip(tensor, mean, std):
-#         t.mul_(s).add_(m)
-#     return tensor
-
-
-# def preprocess_image(path):
-#     img = Image.open(path).convert('LAB')
-#     lab_img = np.array(img)
-    
-#     l, a, b = lab_img[:,:,0], lab_img[:,:,1], lab_img[:,:,2]
-#     l_mean, l_std = np.mean(l), np.std(l)
-#     a_mean, a_std = np.mean(a), np.std(a)
-#     b_mean, b_std = np.mean(b), np.std(b)
-#     image_data = [l_mean, l_std, a_mean, a_std, b_mean, b_std]
-
-#     return image_data
 def predict_cluster(df):
     X_train = df[["l_mean", "l_std", "a_mean", "a_std", "b_mean", "b_std"]].values
     y_train = df.labelCluster
@@ -105,7 +86,13 @@ def predict_cluster(df):
     clf.fit(X_train, y_train)
     return scaler, clf
 
-def test_by_cluster(model, dataloader, cluster_predictor, df_test, device):
+def calculate_optimal_threshold(labels, outputs):
+    fpr, tpr, thresholds = roc_curve(labels.cpu().numpy(), outputs.cpu().numpy())
+    optimal_idx = np.argmax(tpr - fpr)  # Youden's index
+    optimal_threshold = thresholds[optimal_idx]
+    return optimal_threshold
+
+def test_by_cluster(model, dataloader, df_test, device):
     '''
     Evaluate the model on the entire test set.
     '''
@@ -114,42 +101,61 @@ def test_by_cluster(model, dataloader, cluster_predictor, df_test, device):
     # Initialize metrics
     acc_metric = torchmetrics.classification.BinaryAccuracy().to(device)
     uar_metric = torchmetrics.classification.BinaryRecall().to(device)
+    f1_metric = torchmetrics.F1Score(task="binary").to(device)
+    roc_auc_metric = torchmetrics.AUROC(task="binary").to(device)
     
     # initialize a confusion matrix torchmetrics object
     confusion_matrix = torchmetrics.classification.BinaryConfusionMatrix().to(device)
+
+    all_outputs = []
+    all_labels = []
 
     with torch.no_grad():
 
         for images, labels, img_names in dataloader:
             images, labels = images.to(device), labels.to(device).float()
 
-            outputs = []
-            for idx, img in enumerate(images):
-                img_data = df_test[df_test.img_name == img_names[idx]][["l_mean", "l_std", "a_mean", "a_std", "b_mean", "b_std"]]
-                img_data = img_data.values.reshape(1,-1)
+            clusters = np.array([df_test.loc[df_test.img_name == img_name, 'labelCluster'].iloc[0] for img_name in img_names])
+
+
+            outputs = torch.zeros(len(images), dtype=torch.float32).to(device)
+            for cluster in np.unique(clusters):
+                # Select indices for each cluster
+                cluster_indices = np.where(clusters == cluster)[0]
                 
-                scaler = cluster_predictor[0]
-                predictor = cluster_predictor[1]
+                # Perform batch prediction for images in this cluster
+                cluster_images = images[cluster_indices]
+                cluster_outputs = model(cluster_images)[cluster]
+                outputs[cluster_indices] = cluster_outputs.squeeze()
 
-                cluster = predictor.predict(scaler.transform(img_data))[0]
+            all_outputs.append(outputs.cpu().numpy())
+            all_labels.append(labels.cpu().numpy())
 
-                output = model(img.unsqueeze(0))[cluster]
-                predict = 1.0 if output > 0.5 else 0.0
-                outputs.append(predict) 
+        all_outputs = torch.tensor(np.concatenate(all_outputs))
+        all_labels = torch.tensor(np.concatenate(all_labels))
 
-            outputs = torch.tensor(outputs, dtype=torch.float32).to(device)
-            # Accumulate metrics
-            acc_metric(outputs, labels)
-            uar_metric(outputs, labels)
+        optimal_threshold = calculate_optimal_threshold(all_labels, all_outputs)
+
+        if outputs.device != device:
+            outputs = outputs.to(device)
+        if final_labels.device != device:
+            final_labels = final_labels.to(device)
+            
+        optimal_threshold = torch.tensor(optimal_threshold, device=device)
         
-            # acculmate confusion matrix 
-            confusion_matrix(outputs, labels)
+        acc_metric((all_outputs > optimal_threshold).int(), all_labels)
+        uar_metric((all_outputs > optimal_threshold).int(), all_labels)
+        f1_metric((all_outputs > optimal_threshold).int(), all_labels)
+        roc_auc_metric(all_outputs, all_labels)  # ROC-AUC uses raw sigmoid values
+        confusion_matrix((all_outputs > optimal_threshold).int(), all_labels)
 
          
     # Calculate epoch metrics, and store in a dictionary for wandb
     metrics_dict = {
         'Accuracy_test': acc_metric.compute(),
         'UAR_test': uar_metric.compute(),
+        'F1_test': f1_metric.compute(),
+        'AUC_ROC_test': roc_auc_metric.compute(),
     }
 
     # Compute the confusion matrix
@@ -163,6 +169,8 @@ def test_by_mv(model, dataloader, device):
     # Initialize metrics
     acc_metric = torchmetrics.classification.BinaryAccuracy().to(device)
     uar_metric = torchmetrics.classification.BinaryRecall().to(device)
+    f1_metric = torchmetrics.F1Score(task="binary").to(device)
+    roc_auc_metric = torchmetrics.AUROC(task="binary").to(device)
     
     # initialize a confusion matrix torchmetrics object
     confusion_matrix = torchmetrics.classification.BinaryConfusionMatrix().to(device)
@@ -172,18 +180,15 @@ def test_by_mv(model, dataloader, device):
         for images, labels, _ in dataloader:
             images, labels = images.to(device), labels.to(device).float()
 
-            outputs = []
-            for img in images:
-                predictions = model(img.unsqueeze(0))
-                binary_predictions = [1.0 if output > 0.5 else 0.0 for output in predictions]
+            batch_predictions = model(images)
+            binary_predictions = (batch_predictions > 0.5).float()
+            outputs, _ = torch.mode(binary_predictions, dim=1)
 
-                final_prediction = torch.mode(torch.tensor(binary_predictions)).values.item()
-                outputs.append(final_prediction) 
-
-            outputs = torch.tensor(outputs, dtype=torch.float32).to(device)
             # Accumulate metrics
             acc_metric(outputs, labels)
             uar_metric(outputs, labels)
+            f1_metric(outputs, labels)
+            roc_auc_metric(outputs, labels)
         
             # acculmate confusion matrix 
             confusion_matrix(outputs, labels)
@@ -193,6 +198,8 @@ def test_by_mv(model, dataloader, device):
     metrics_dict = {
         'Accuracy_test': acc_metric.compute(),
         'UAR_test': uar_metric.compute(),
+        'F1_test': f1_metric.compute(),
+        'AUC_ROC_test': roc_auc_metric.compute(),
     }
 
     # Compute the confusion matrix
@@ -210,19 +217,18 @@ if __name__ == '__main__':
     # sample,_ = train_test_split(df, train_size=args.sample, stratify=df[stratifier], random_state=11)
 
     df_train = pd.read_csv(f"clustering/output/clustering_result_{args.classification_task}_{args.testset}.csv")
-    cluster_predictor = predict_cluster(df_train)
-    df_test = pd.read_csv('clustering/output/img_statistics.csv')
+
 
     dataset = MultiTaskDataset(df, args.classification_task, crop_size = args.crop_size)
-    batch_size = 32
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=True)
+    batch_size = 64
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers = 2, pin_memory = True)
 
     num_tasks = 1
     if args.multitask:
         num_tasks  = len(df_train.labelCluster.unique())  #number of clustes in dataset and number of heads in multitask model
 
     # load saved model
-    model_files = glob.glob(f'saved_models/{args.crop_size}_{multitask}_no-aug_{args.model}_{args.classification_task}_{args.testset}*')
+    model_files = glob.glob(f'saved_models/FULL-{args.crop_size}_{multitask}_no-aug_{args.model}_{args.classification_task}_{args.testset}*')
     state_dict = torch.load(model_files[0])
 
     if args.model == "ResNet50":
@@ -237,7 +243,16 @@ if __name__ == '__main__':
 
     if args.multitask:
         if args.test_method == "cluster":       #test by most similar cluster
-            test_metrics_dict, cm = test_by_cluster(model, dataloader, cluster_predictor, df_test, device)
+            scaler, predictor = predict_cluster(df_train)
+
+            # preprocess for test images
+            df_statistics = pd.read_csv('clustering/output/img_statistics.csv')
+            df_test = df_statistics[df_statistics.dataset == args.testset].reset_index()
+            test_data = df_test[["l_mean", "l_std", "a_mean", "a_std", "b_mean", "b_std"]]
+            clusters = predictor.predict(scaler.transform(test_data))
+            df_test['labelCluster'] = clusters
+
+            test_metrics_dict, cm = test_by_cluster(model, dataloader, df_test, device)
         elif args.test_method == "mv":          # majority vote
             test_metrics_dict, cm = test_by_mv(model, dataloader, device)
     else:

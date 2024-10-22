@@ -1,7 +1,7 @@
-python train_no_aug.py \
---classification-task 'TIL' \
---model "ResNet18" \
---testset 'lizard'
+# python train_no_aug.py \
+# --classification-task 'TIL' \
+# --model "ResNet18" \
+# --testset 'lizard'
 
 python test_no_aug.py \
 --classification-task 'TIL' \
@@ -15,10 +15,10 @@ python test_no_aug.py \
 --testset 'lizard' 
 
 ##########################################
-python train_no_aug.py \
---classification-task 'TIL' \
---model "ResNet18" \
---testset 'cptacCoad' 
+# python train_no_aug.py \
+# --classification-task 'TIL' \
+# --model "ResNet18" \
+# --testset 'cptacCoad' 
 
 python test_no_aug.py \
 --classification-task 'TIL' \

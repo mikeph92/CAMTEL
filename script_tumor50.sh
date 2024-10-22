@@ -1,8 +1,8 @@
-python train_no_aug.py \
---classification-task 'tumor' \
---model 'ResNet50' \
---crop-size 96 \
---testset 'pannuke'
+# python train_no_aug.py \
+# --classification-task 'tumor' \
+# --model 'ResNet50' \
+# --crop-size 96 \
+# --testset 'pannuke'
 
 python test_no_aug.py \
 --classification-task 'tumor' \
@@ -19,11 +19,11 @@ python test_no_aug.py \
 
 #######################################
 
-python train_no_aug.py \
---classification-task 'tumor' \
---model 'ResNet50' \
---crop-size 96 \
---testset 'ocelot' 
+# python train_no_aug.py \
+# --classification-task 'tumor' \
+# --model 'ResNet50' \
+# --crop-size 96 \
+# --testset 'ocelot' 
 
 python test_no_aug.py \
 --classification-task 'tumor' \
@@ -42,11 +42,11 @@ python test_no_aug.py \
 
 #######################################
 
-python train_no_aug.py \
---classification-task 'tumor' \
---model 'ResNet50' \
---crop-size 96 \
---testset 'nucls' 
+# python train_no_aug.py \
+# --classification-task 'tumor' \
+# --model 'ResNet50' \
+# --crop-size 96 \
+# --testset 'nucls' 
 
 python test_no_aug.py \
 --classification-task 'tumor' \

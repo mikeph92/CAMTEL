@@ -243,8 +243,8 @@ if __name__ == '__main__':
         train_dataset, val_dataset = random_split(dataset, [train_size, val_size], generator = generator)        
 
         dataloaders[task_idx] = {
-            'train': DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers = 2),
-            'val': DataLoader(val_dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers = 2)
+            'train': DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers =4, pin_memory = True),
+            'val': DataLoader(val_dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers = 4, pin_memory = True)
         }
     
     train_model(model, dataloaders, optimizer, weights, n_epochs, device, class_names)
