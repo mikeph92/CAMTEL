@@ -137,10 +137,10 @@ def test_by_cluster(model, dataloader, df_test, device):
 
         optimal_threshold = calculate_optimal_threshold(all_labels, all_outputs)
 
-        if outputs.device != device:
-            outputs = outputs.to(device)
-        if final_labels.device != device:
-            final_labels = final_labels.to(device)
+        if all_outputs.device != device:
+            all_outputs = all_outputs.to(device)
+        if all_labels.device != device:
+            all_labels = all_labels.to(device)
         optimal_threshold = torch.tensor(optimal_threshold, device=device)
         
         acc_metric((all_outputs > optimal_threshold).int(), all_labels)

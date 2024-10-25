@@ -4,12 +4,12 @@
 # --crop-size 96 \
 # --testset 'pannuke'
 
-python test_randstainna2.py \
---classification-task 'tumor' \
---model 'ResNet50' \
---crop-size 96 \
---testset 'pannuke' \
---test-method 'mv' 
+# python test_randstainna2.py \
+# --classification-task 'tumor' \
+# --model 'ResNet50' \
+# --crop-size 96 \
+# --testset 'pannuke' \
+# --test-method 'mv' 
 
 python test_randstainna2.py \
 --classification-task 'tumor' \
@@ -25,12 +25,12 @@ python test_randstainna2.py \
 # --crop-size 96 \
 # --testset 'ocelot' 
 
-python test_randstainna2.py \
---classification-task 'tumor' \
---model 'ResNet50' \
---crop-size 96 \
---testset 'ocelot'  \
---test-method 'mv' 
+# python test_randstainna2.py \
+# --classification-task 'tumor' \
+# --model 'ResNet50' \
+# --crop-size 96 \
+# --testset 'ocelot'  \
+# --test-method 'mv' 
 
 
 python test_randstainna2.py \
@@ -48,12 +48,12 @@ python test_randstainna2.py \
 # --crop-size 96 \
 # --testset 'nucls' 
 
-python test_randstainna2.py \
---classification-task 'tumor' \
---model 'ResNet50' \
---crop-size 96 \
---testset 'nucls'  \
---test-method 'mv' 
+# python test_randstainna2.py \
+# --classification-task 'tumor' \
+# --model 'ResNet50' \
+# --crop-size 96 \
+# --testset 'nucls'  \
+# --test-method 'mv' 
 
 python test_randstainna2.py \
 --classification-task 'tumor' \
@@ -68,12 +68,12 @@ python test_randstainna2.py \
 # --crop-size 96 \
 # --testset 'pannuke' \
 # --multitask '' 
-python test_randstainna2.py \
---classification-task 'tumor' \
---model 'ResNet50' \
---crop-size 96 \
---testset 'pannuke' \
---multitask ''  
+# python test_randstainna2.py \
+# --classification-task 'tumor' \
+# --model 'ResNet50' \
+# --crop-size 96 \
+# --testset 'pannuke' \
+# --multitask ''  
 
 ######################################
 
@@ -85,12 +85,12 @@ python test_randstainna2.py \
 # --multitask '' 
 
 
-python test_randstainna2.py \
---classification-task 'tumor' \
---model 'ResNet50' \
---crop-size 96 \
---testset 'ocelot'  \
---multitask '' 
+# python test_randstainna2.py \
+# --classification-task 'tumor' \
+# --model 'ResNet50' \
+# --crop-size 96 \
+# --testset 'ocelot'  \
+# --multitask '' 
 
 #####################################
 
@@ -101,10 +101,10 @@ python test_randstainna2.py \
 # --testset 'nucls' \
 # --multitask '' 
 
-python test_randstainna2.py \
---classification-task 'tumor' \
---model 'ResNet50' \
---crop-size 96 \
---testset 'nucls'  \
---multitask '' 
+# python test_randstainna2.py \
+# --classification-task 'tumor' \
+# --model 'ResNet50' \
+# --crop-size 96 \
+# --testset 'nucls'  \
+# --multitask '' 
 
