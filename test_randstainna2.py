@@ -87,12 +87,6 @@ def predict_cluster(df):
     clf.fit(X_train, y_train)
     return scaler, clf
 
-def calculate_optimal_threshold(labels, outputs):
-    fpr, tpr, thresholds = roc_curve(labels.cpu().numpy(), outputs.cpu().numpy())
-    optimal_idx = np.argmax(tpr - fpr)  # Youden's index
-    optimal_threshold = thresholds[optimal_idx]
-    return optimal_threshold
-
 def test_by_cluster(model, dataloader, df_test, device):
     '''
     Evaluate the model on the entire test set.
@@ -108,8 +102,6 @@ def test_by_cluster(model, dataloader, df_test, device):
     # initialize a confusion matrix torchmetrics object
     confusion_matrix = torchmetrics.classification.BinaryConfusionMatrix().to(device)
 
-    all_outputs = []
-    all_labels = []
 
     with torch.no_grad():
 
@@ -128,26 +120,12 @@ def test_by_cluster(model, dataloader, df_test, device):
                 cluster_images = images[cluster_indices]
                 cluster_outputs = model(cluster_images)[cluster]
                 outputs[cluster_indices] = cluster_outputs.squeeze()
-
-            all_outputs.append(outputs.cpu().numpy())
-            all_labels.append(labels.cpu().numpy())
-
-        all_outputs = torch.tensor(np.concatenate(all_outputs))
-        all_labels = torch.tensor(np.concatenate(all_labels))
-
-        optimal_threshold = calculate_optimal_threshold(all_labels, all_outputs)
-
-        if all_outputs.device != device:
-            all_outputs = all_outputs.to(device)
-        if all_labels.device != device:
-            all_labels = all_labels.to(device)
-        optimal_threshold = torch.tensor(optimal_threshold, device=device)
         
-        acc_metric((all_outputs > optimal_threshold).int(), all_labels)
-        uar_metric((all_outputs > optimal_threshold).int(), all_labels)
-        f1_metric((all_outputs > optimal_threshold).int(), all_labels)
-        roc_auc_metric(all_outputs, all_labels)  # ROC-AUC uses raw sigmoid values
-        confusion_matrix((all_outputs > optimal_threshold).int(), all_labels)
+            acc_metric((outputs > 0.5).int(), labels)
+            uar_metric((outputs > 0.5).int(), labels)
+            f1_metric((outputs > 0.5).int(), labels)
+            roc_auc_metric(outputs, labels)  # ROC-AUC uses raw sigmoid values
+            confusion_matrix((outputs > 0.5).int(), labels)
 
          
     # Calculate epoch metrics, and store in a dictionary for wandb
