@@ -6,6 +6,7 @@ import yaml
 import os
 import time
 from PIL import Image
+import pandas as pd
 
 class Dict2Class(object):
       
@@ -191,44 +192,56 @@ class RandStainNA(object):
 
 if __name__ == '__main__':
    
-    '''
-    Usage1: Demo(for visualization)
-    '''
-    # Setting: is_train = False
-    randstainna = RandStainNA(
-        yaml_file = '/media/wagnchogn/data/wsi_augmentation/randstiannav2-master/crc/CRC.yaml',
-        #std_hyper = -0.3,
-        std_hyper=0.0,
-        distribution = 'normal', 
-        probability = 1.0,
-    )
-    print(randstainna)
-
-    img_path_list = [
-        '/media/wagnchogn/data_16t/NCT/NCT-CRC-HE-100K-NONORM/TUM/TUM-AEPINLNQ.tif',
-        '/media/wagnchogn/data_16t/NCT/NCT-CRC-HE-100K-NONORM/TUM/TUM-DFGFFNEY.tif',
-        '/media/wagnchogn/data_16t/NCT/NCT-CRC-HE-100K-NONORM/TUM/TUM-EWFNFSQL.tif'
-        #'/media/wagnchogn/data_16t/NCT/NCT-CRC-HE-100K-NONORM/TUM/TUM-TCGA-CVATFAAT.png'
-    ]
-    save_dir_path = '/media/wagnchogn/data/wsi_augmentation/randstiannav2-master/crc/randstainna'
-    if not os.path.exists(save_dir_path):
-        os.mkdir(save_dir_path)
-
-    t_start = time.time()
-    for img_path in img_path_list:
-        img = randstainna(cv2.imread(img_path))
-        save_img_path = save_dir_path + '/{}'.format(img_path.split('/')[-1])
-        cv2.imwrite(save_img_path,img)
-    t_end = time.time()
-    print(t_end-t_start)
-    '''
-    Usage2：torchvision.transforms (for training)
-    '''
-    # Setting: is_train = False
-    # from torchvision import transforms
-    # transforms_list = [
-    #     RandStainNA(yaml_file='./CRC_LAB_randomTrue_n0.yaml', std_hyper=0, probability=1.0,
-    #                           distribution='normal', is_train=True)
-    # ]
-    # transforms.Compose(transforms_list)
+    dataset_dict = {"TIL": ["lizard", "nucls"]}
+                    #"tumor": ["ocelot", "pannuke", "nucls"]}
     
+    
+    for task in dataset_dict.keys():
+        for testset in dataset_dict[task]:
+            df = pd.read_csv(f"/home/michael/CAMTEL/clustering/output/clustering_result_{task}_{testset}.csv")
+                
+
+            # Augmenting for multihead training
+            for i in df.labelCluster.unique():
+                yaml_path = f"/home/michael/CAMTEL/yaml_config/{task}_{testset}_{i}.yaml"
+
+                randstainna = RandStainNA(
+                    yaml_file = yaml_path,
+                    std_hyper = 0.0,
+                    distribution = 'normal', 
+                    probability = 1.0,
+                )
+
+                df_filtered = df[df.labelCluster == i].reset_index()
+                for _, row in df_filtered.iterrows():
+                    img_path = row['img_path']
+                    img = Image.open(img_path).convert('RGB')
+
+                    img_name = os.path.basename(img_path)
+                    saved_path = f'/home/michael/data/Augmented/{task}_{testset}/multi'
+                    if not os.path.exists(saved_path):
+                        os.makedirs(saved_path)
+
+                    new_img = randstainna(img)
+                    new_img.save(f'{saved_path}/{img_name}')
+            
+            # Augmenting for single headed training
+            yaml_path = f"/home/michael/CAMTEL/yaml_config/{task}_{testset}.yaml"
+
+            randstainna = RandStainNA(
+                yaml_file = yaml_path,
+                std_hyper = 0.0,
+                distribution = 'normal', 
+                probability = 1.0,
+            )
+            for _, row in df.iterrows():
+                img_path = row['img_path']
+                img = Image.open(img_path).convert('RGB')
+
+                img_name = os.path.basename(img_path)
+                saved_path = f'/home/michael/data/Augmented/{task}_{testset}/single'
+                if not os.path.exists(saved_path):
+                    os.makedirs(saved_path)
+
+                new_img = randstainna(img)
+                new_img.save(f'{saved_path}/{img_name}')
