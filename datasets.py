@@ -23,6 +23,12 @@ def get_path(dataset, img_name, datatype):
 
     return f"{path_dict[(dataset,datatype)]}/{img_name}.tif"
 
+# def get_path_augmentation(task, testset, img_name, multitask = True, train = True):
+#     multi_text = 'multi' if multitask else ('single' if train else 'test')
+#     img_path = f'/home/michael/data/Augmented/{task}_{testset}/{multi_text}/{img_name}.tif'
+#     return img_path
+
+
 # MultiTask Dataset class
 class MultiTaskDataset(Dataset):
     def __init__(self, df, task, datatype = 'original', crop_size = 224):
@@ -116,3 +122,46 @@ class MultiTaskDatasetRandStainNA(Dataset):
         
         return image, label, img_name
 
+# MultiTask Dataset class
+class RandStainNADataset(Dataset):
+    def __init__(self, df, task, testset, saved_path, crop_size = 224):
+        self.datasets = df['dataset']
+        self.img_names = df['img_name']
+        self.centerXs = df['centerX']
+        self.centerYs = df['centerY']
+        self.labels = df['labelTumor'] if task == "tumor" else df['labelTIL']
+        self.crop_size = crop_size
+        self.task = task
+        self.testset = testset
+        self.saved_path = saved_path
+
+
+        self.transform = transforms.Compose([
+            transforms.RandomHorizontalFlip(0.5),
+            transforms.RandomVerticalFlip(0.5),
+            transforms.Pad(padding = int((224 - self.crop_size)/2)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+        self.pos_weight = sum(self.labels == 0)/sum(self.labels == 1) if sum(self.labels == 1) != 0 else float('inf')
+    
+    def __len__(self):
+        return len(self.labels)
+    
+    def __getitem__(self, idx):
+        img_name = self.img_names[idx]
+        img_path = f'{self.saved_path}/{img_name}.tif'
+        full_img = Image.open(img_path)
+        if self.datasets[idx] == "lizard":
+            crop_size = int(self.crop_size/2)           #lizard dataset has x20 magnification instead of x40
+            crop_box = (self.centerXs[idx]-crop_size/2,self.centerYs[idx]-crop_size/2, self.centerXs[idx]+crop_size/2, self.centerYs[idx]+crop_size/2)
+            image = full_img.crop(crop_box)
+            image = image.resize((self.crop_size, self.crop_size), Image.BICUBIC)       #resize into standard size to fix with other datasets
+        else:
+            crop_box = (self.centerXs[idx]-self.crop_size/2,self.centerYs[idx]-self.crop_size/2, self.centerXs[idx]+self.crop_size/2, self.centerYs[idx]+self.crop_size/2)
+            image = full_img.crop(crop_box)
+
+        image = self.transform(image)
+
+        label = self.labels[idx]
+        return image, label, img_name
