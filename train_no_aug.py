@@ -8,7 +8,7 @@ import torchmetrics
 from torch.utils.data import DataLoader, random_split
 from sklearn.model_selection import train_test_split
 from datasets import MultiTaskDataset
-from models import MultiTaskResNet18, MultiTaskResNet50
+from models import MultiTaskResNet18, MultiTaskResNet50, UNIMultitask
 import torch.optim as optim
 import argparse
 import os
@@ -209,8 +209,11 @@ if __name__ == '__main__':
     # Instantiate the model
     if args.model == "ResNet50":
         model = MultiTaskResNet50(num_tasks=num_tasks, retrain = True)
-    else:
+    elif args.model == "ResNet18":
         model = MultiTaskResNet18(num_tasks=num_tasks, retrain = True)
+    else:
+        model = UNIMultitask(num_tasks=num_tasks)
+        
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
     batch_size = 64
     n_epochs = 10

@@ -8,6 +8,12 @@ from sklearn.manifold import TSNE
 from sklearn.metrics import silhouette_score
 import matplotlib.pyplot as plt
 import argparse
+from sklearn.metrics import pairwise_distances_argmin_min
+import matplotlib
+
+matplotlib.use('Agg')
+
+
 
 
 Image.MAX_IMAGE_PIXELS = None
@@ -23,6 +29,17 @@ def select_folders():
                     }
     return folder_paths
     
+def get_path(dataset, img_name):
+    path_dict = {
+        ("ocelot"): "/home/michael/data/ProcessedHistology/Ocelot/inputs/original",
+        ("lizard"): "/home/michael/data/ProcessedHistology/Lizard/inputs/original",
+        ("pannuke"): "/home/michael/data/ProcessedHistology/PanNuke/inputs/original",
+        ("nucls"): "/home/michael/data/ProcessedHistology/NuCLS/inputs/original",
+        ("cptacCoad"): "/home/michael/data/ProcessedHistology/CPTAC-COAD/inputs/original",
+        ("tcgaBrca"): "/home/michael/data/ProcessedHistology/TCGA-BRCA/inputs/original"
+    }
+
+    return f"{path_dict[(dataset)]}/{img_name}.tif"
 
 # Function to convert images to LAB space and calculate mean and deviation
 def process_images(folder_paths):
@@ -59,13 +76,18 @@ def cluster_images(image_data, n_clusters=10):
     
 # Function to save clusters plot as an image
 def save_clusters_plot(labels, reduced_data, filename='./output/clusters_plot.png'):
-    unique_labels = set(labels)
-    colors = [plt.cm.Spectral(each) for each in np.linspace(0, 1, len(unique_labels))]
-    for k, col in zip(unique_labels, colors):
-        class_member_mask = (labels == k)
-        xy = reduced_data[class_member_mask]
-        plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col), markeredgecolor='k', markersize=6)
+    plt.figure(figsize=(10, 8))
+    unique_labels = np.unique(labels)
+    
+    for label in unique_labels:
+        cluster_data = reduced_data[labels == label]
+        plt.scatter(cluster_data[:, 0], cluster_data[:, 1], label=f'Cluster {label}', s=20)
+    
     plt.title('KMeans Clustering with t-SNE')
+    plt.xlabel('t-SNE Dimension 1')
+    plt.ylabel('t-SNE Dimension 2')
+    plt.legend()
+    
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     plt.savefig(filename)
     plt.close()
@@ -86,9 +108,27 @@ def read_from_csv(classification_task, test_set,filename='./output/img_statistic
         df = df[df.dataset.isin(["lizard", "cptacCoad", "tcgaBrca", "nucls"])]
     
     df = df[df.dataset != test_set]
+    df['img_path'] = df.apply(lambda row: get_path(row['dataset'], row['img_name']), axis = 1)
     image_paths = df[["dataset","img_path"]]
-    image_data =  df.drop(columns = ["dataset","img_path"])
+    image_data =  df.drop(columns = ["dataset","img_path", 'img_name'])
     return image_data, image_paths
+
+# Function to find and plot images closest to each cluster centroid
+def plot_closest_images_to_centroids(image_paths, image_data, labels, centroids, n_clusters=10, filename='./output/closest_images.png'):
+    closest, _ = pairwise_distances_argmin_min(centroids, image_data)  # Find closest images
+    plt.figure(figsize=(15, 10))
+    
+    for i, idx in enumerate(closest):
+        img_path = image_paths.iloc[idx]['img_path']
+        img = Image.open(img_path)
+        plt.subplot(1, n_clusters, i + 1)
+        plt.imshow(img)
+        plt.title(f'Cluster {i}')
+        plt.axis('off')
+    
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    plt.savefig(filename)
+    plt.close()
 
 
 
@@ -108,7 +148,7 @@ def main(classification_task, test_set):
     best_centroids = []
 
 
-    for i in range(4,11):
+    for i in range(5,7):
         labels, reduced_data, centroids = cluster_images(image_data, n_clusters=i)
         score = silhouette_score(reduced_data, labels)
         if score > best_silhouette:
@@ -117,12 +157,13 @@ def main(classification_task, test_set):
             best_label = labels
             best_centroids = centroids
 
-    # save_clusters_plot(labels, reduced_data, filename=f"./output/cluster of {i} for LAB.png")
-    save_to_csv(image_paths, image_data, best_label, filename=f"./output/clustering_result_{classification_task}_{test_set}.csv")
-    with open(f'output/centroids_{classification_task}_{test_set}.txt', 'w') as f:
-        for item in best_centroids:
-            f.write(f"{item}\n")  # Writing each value on a new line    
-    print((f'Silhouette Score for {best_n_clusters} clusters: {score}\n'))
+    save_clusters_plot(best_label, reduced_data, filename=f"./output/cluster of for LAB.png")
+    plot_closest_images_to_centroids(image_paths, image_data, best_label, best_centroids, n_clusters=best_n_clusters, filename=f"./output/closest_images.png")
+    # save_to_csv(image_paths, image_data, best_label, filename=f"./output/clustering_result_{classification_task}_{test_set}.csv")
+    # with open(f'output/centroids_{classification_task}_{test_set}.txt', 'w') as f:
+    #     for item in best_centroids:
+    #         f.write(f"{item}\n")  # Writing each value on a new line    
+    # print((f'Silhouette Score for {best_n_clusters} clusters: {score}\n'))
 
 
 parser = argparse.ArgumentParser(description='clustering')
