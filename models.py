@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torchvision import models
 import timm
+from tokens import TOKEN_HUGGINGFACE
 
 
 class MultiTaskResNet18(nn.Module):
@@ -67,4 +68,41 @@ class MultiTaskResNet50(nn.Module):
         
         return outputs
     
-    
+class UNIMultitask(nn.Module):
+    def __init__(self, num_tasks, output_dim=1):
+        super(UNIMultitask, self).__init__()
+        # load pretrained model UNI, and then retrain block (23) onward
+        base_model = timm.create_model("hf-hub:MahmoodLab/uni", pretrained=True, init_values=1e-5, dynamic_img_size=True)
+
+        for name, param in base_model.named_parameters():
+            if "blocks" in name:
+                block_idx = int(name.split(".")[1])
+                if block_idx < 23:  # Freeze all blocks except the last one
+                    param.requires_grad = False
+            elif name in ["patch_embed.proj.weight", "patch_embed.proj.bias", "pos_drop.weight", "pos_drop.bias"]:
+                param.requires_grad = False
+            else:
+                param.requires_grad = True  # Unfreeze "norm", "fc_norm", "head_drop", and "head"
+
+        # Replace the original head with an identity layer (for feature extraction)
+        base_model.head = nn.Identity()
+
+        self.base_model = base_model
+        self.num_tasks = num_tasks
+        
+        # Add multiple classification heads
+        self.heads = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(base_model.num_features, 256),  # Intermediate hidden layer
+                nn.ReLU(),
+                nn.Linear(256, output_dim),
+            ) for _ in range(num_tasks)
+        ])
+        
+    def forward(self, x):
+        # Pass input through the base model up to the feature extractor
+        features = self.base_model(x)
+        
+        # Pass extracted features through each head
+        outputs = [head(features) for head in self.heads]
+        return outputs

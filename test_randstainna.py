@@ -9,7 +9,7 @@ from sklearn.metrics import roc_curve
 from torch.utils.data import DataLoader, ConcatDataset
 from sklearn.model_selection import train_test_split
 from datasets import RandStainNADataset, get_path
-from models import MultiTaskResNet50, MultiTaskResNet18
+from models import MultiTaskResNet50, MultiTaskResNet18, UNIMultitask
 import torch.optim as optim
 import argparse
 import glob
@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 import sys
+import json
 from randstainna import RandStainNA
 
 parser = argparse.ArgumentParser(description='clustering')
@@ -119,7 +120,7 @@ def test_by_cluster(model, dataloader, df_test, device):
                 # Perform batch prediction for images in this cluster
                 cluster_images = images[cluster_indices]
                 cluster_outputs = model(cluster_images)[cluster]
-                outputs[cluster_indices] = cluster_outputs.squeeze()
+                outputs[cluster_indices] = torch.sigmoid(cluster_outputs).squeeze()
 
         
             acc_metric((outputs > 0.5).int(), labels)
@@ -137,6 +138,18 @@ def test_by_cluster(model, dataloader, df_test, device):
         'AUC_ROC_test': roc_auc_metric.compute(),
     }
 
+    #write results into json file
+    results = {
+        "task": args.classification_task,
+        "testset": args.testset,
+        "augmented": "Yes",
+        "method": "cluster based",
+        "num_tasks": num_tasks
+    }
+    results.update(metrics_dict)
+    with open("outputs/test_result.json", "a") as f:
+        json.dump(results, f)
+
     # Compute the confusion matrix
     cm = confusion_matrix.compute().cpu().numpy()
 
@@ -151,10 +164,9 @@ def predict_with_model_and_labels(model, dataloader, task_index, device):
             images = images.to(device)  # Move images to the GPU
             labels = labels.to(device)  # Move labels to the GPU for accuracy calculation
             
-            outputs = model(images)[task_index]  # Assuming outputs are probabilities (sigmoid or softmax)
+            outputs = model(images)[task_index]
             
-            # Apply threshold of 0.5 to convert probabilities to class predictions
-            preds = (outputs > 0.5).int().squeeze()  # Binary: 1 if prob > 0.5 else 0
+            preds = torch.sigmoid(outputs).round()
             
             all_preds.append(preds.cpu())  # Move predictions back to the CPU and store
             all_labels.append(labels.cpu())  # Move labels back to the CPU and store
@@ -215,6 +227,18 @@ def test_by_mv(model, dataloaders, device):
         'AUC_ROC_test': roc_auc_metric.compute(),
     }
 
+    #write results into json file
+    results = {
+        "task": args.classification_task,
+        "testset": args.testset,
+        "augmented": "Yes",
+        "method": "majorify vote",
+        "num_tasks": num_tasks
+    }
+    results.update(metrics_dict)
+    with open("outputs/test_result.json", "a") as f:
+        json.dump(results, f)
+
     # Compute the confusion matrix
     cm = confusion_matrix.compute().cpu().numpy()
 
@@ -233,14 +257,14 @@ def augmenting_images(df, saved_path, cluster = None):
         if not os.path.exists(saved_path):
             os.makedirs(saved_path)
         for _, row in df.iterrows():
-            if os.path.isfile(f'{saved_path}/{row['img_name']}.tif'):
+            if os.path.isfile(f"{saved_path}/{row['img_name']}.tif"):
                 continue
 
             img_path = get_path(row['dataset'], row['img_name'], "original")
             img = Image.open(img_path).convert('RGB')
 
             new_img = randstainna(img)
-            new_img.save(f'{saved_path}/{row['img_name']}.tif')
+            new_img.save(f"{saved_path}/{row['img_name']}.tif")
         
     else:
         yaml_path = f"/home/michael/CAMTEL/yaml_config/{args.classification_task}_{args.testset}.yaml"
@@ -256,14 +280,14 @@ def augmenting_images(df, saved_path, cluster = None):
             os.makedirs(saved_path)
 
         for _, row in df.iterrows():
-            if os.path.isfile(f'{saved_path}/{row['img_name']}.tif'):
+            if os.path.isfile(f"{saved_path}/{row['img_name']}.tif"):
                 continue
 
             img_path = get_path(row['dataset'], row['img_name'], "original")
             img = Image.open(img_path).convert('RGB')
 
             new_img = randstainna(img)
-            new_img.save(f'{saved_path}/{row['img_name']}.tif')
+            new_img.save(f"{saved_path}/{row['img_name']}.tif")
                      
 
 
@@ -294,7 +318,7 @@ def dataset_by_mv(df, num_tasks):
 
         sample,_ = train_test_split(df, train_size=args.sample, stratify=df[stratifier], random_state=7)
         dataset = RandStainNADataset(sample.reset_index(), task = args.classification_task, 
-                                        testset = args.testsetmultitask, saved_path = saved_path, crop_size = args.crop_size)
+                                        testset = args.testset, saved_path = saved_path, crop_size = args.crop_size)
         datasets.append(dataset) 
     else:
         for i in range(num_tasks):
@@ -303,7 +327,7 @@ def dataset_by_mv(df, num_tasks):
             try:
                 sample,_ = train_test_split(df, train_size=args.sample, stratify=df[stratifier], random_state=7)
                 dataset = RandStainNADataset(sample.reset_index(), task = args.classification_task, 
-                                                testset = args.testsetmultitask, saved_path = saved_path, crop_size = args.crop_size)
+                                                testset = args.testset, saved_path = saved_path, crop_size = args.crop_size)
                 datasets.append(dataset) 
             except Exception:
                 continue
@@ -323,7 +347,7 @@ if __name__ == '__main__':
     if args.multitask:
         num_tasks  = len(df_train.labelCluster.unique())  #number of clustes in dataset and number of heads in multitask model
 
-    batch_size = 96
+    batch_size = 64
 
     # load saved model
     model_files = glob.glob(f'saved_models/FULL-Nrandstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}*')
@@ -331,8 +355,10 @@ if __name__ == '__main__':
 
     if args.model == "ResNet50":
         model = MultiTaskResNet50(num_tasks=num_tasks)
+    elif args.model == "ResNet18":
+        model = MultiTaskResNet18(num_tasks=num_tasks, retrain = True)
     else:
-        model = MultiTaskResNet18(num_tasks=num_tasks)
+        model = UNIMultitask(num_tasks=num_tasks)
 
     model.load_state_dict(state_dict)
     model.to(device)
