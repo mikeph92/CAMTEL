@@ -208,9 +208,15 @@ def test_by_mv(models, dataloader, device):
 
 if __name__ == '__main__':
 
-    df = pd.read_csv(f"clustering/output/clustering_result_{args.classification_task}_{args.testset}.csv")
-    df['img_name'] = df.apply(lambda row: os.path.basename(df['img_path'])[:-4], axis = 1)
-    df.dropna(inplace=True)
+    df = pd.read_csv("dataset/full_dataset.csv")
+
+    tumor_datasets = ["ocelot", "pannuke", "nucls"]
+    TIL_datasets = [] # TO-DO: UPDATE
+
+    if args.classification_task == "tumor":
+        df_train = df[(df.dataset.isin(tumor_datasets)) & (df.dataset != args.testset)].reset_index()
+    else:
+        df_train = df[(df.dataset.isin(TIL_datasets)) & (df.dataset != args.testset)].reset_index()
 
     datasets = []
     weights = []
@@ -219,7 +225,7 @@ if __name__ == '__main__':
 
     for i in range(num_tasks):
                 
-        dataset = MultiTaskDataset(df, args.classification_task, crop_size = args.crop_size)
+        dataset = MultiTaskDataset(df_train, args.classification_task, crop_size = args.crop_size)
         w = torch.tensor([dataset.pos_weight], dtype=torch.float32, device=device)
 
         datasets.append(dataset)
@@ -265,8 +271,7 @@ if __name__ == '__main__':
         models.append(model)
     
     # test time
-    df_test = pd.read_csv("dataset/full_dataset.csv")
-    df_test = df_test[df_test.dataset == args.testset].reset_index()
+    df_test = df[df.dataset == args.testset].reset_index()
 
     dataset_test = MultiTaskDataset(df_test, args.classification_task, crop_size = args.crop_size)
     batch_size = 64

@@ -245,18 +245,24 @@ def macenko_normalize(img, mean, std):
 
 if __name__ == '__main__':
 
-    df = pd.read_csv(f"clustering/output/clustering_result_{args.classification_task}_{args.testset}.csv")
-    df['img_name'] = df.apply(lambda row: os.path.basename(df['img_path'])[:-4], axis = 1)
-    df.dropna(inplace=True)
+    df = pd.read_csv("dataset/full_dataset.csv")
+
+    tumor_datasets = ["ocelot", "pannuke", "nucls"]
+    TIL_datasets = [] # TO-DO: UPDATE
+
+    if args.classification_task == "tumor":
+        df_train = df[(df.dataset.isin(tumor_datasets)) & (df.dataset != args.testset)].reset_index()
+    else:
+        df_train = df[(df.dataset.isin(TIL_datasets)) & (df.dataset != args.testset)].reset_index()
 
 
     save_dir = f'/home/michael/data/Normalization/{args.classification_task}_{args.testset}'
     os.makedirs(save_dir, exist_ok=True)
     
     #normalize training images
-    img_paths = df['img_path'].unique()
+    img_paths = df_train.apply(lambda row: get_path(row['dataset'],row['img_name']), axis = 1)
     mean, std = compute_training_profile(img_paths)
-    for img_path in img_paths:
+    for img_path in img_paths.unique():
         img = np.array(Image.open(img_path).convert("RGB"))
         img = macenko_normalize(img, mean, std).astype(np.uint8)
         img = Image.fromarray(img)
@@ -270,7 +276,7 @@ if __name__ == '__main__':
 
     for i in range(num_tasks):
                 
-        dataset = RandStainNADataset(df, task = args.classification_task, 
+        dataset = RandStainNADataset(df_train, task = args.classification_task, 
                                             testset = args.testset, saved_path = save_dir, crop_size = args.crop_size)
         w = torch.tensor([dataset.pos_weight], dtype=torch.float32, device=device)
 
@@ -314,8 +320,7 @@ if __name__ == '__main__':
     model.to(device)
     
     # test time
-    df_test = pd.read_csv("dataset/full_dataset.csv")
-    df_test = df_test[df_test.dataset == args.testset].reset_index()
+    df_test = df[df.dataset == args.testset].reset_index()
 
     #normalize test images
     img_paths = df_test.apply(lambda row: get_path(row['dataset'],row['img_name']), axis = 1)
