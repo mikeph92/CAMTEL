@@ -1,0 +1,91 @@
+{
+    "task": "tumor",
+    "testset": "pannuke",
+    "augmented": "No",
+    "method": "majorify vote",
+    "num_tasks": 10,
+    "Accuracy_test": 0.7824282646179199,
+    "UAR_test": 0.7638464570045471,
+    "F1_test": 0.7421250343322754,
+    "AUC_ROC_test": 0.7795899510383606
+}{
+    "task": "tumor",
+    "testset": "pannuke",
+    "augmented": "No",
+    "method": "cluster based",
+    "num_tasks": 10,
+    "Accuracy_test": 0.7721824049949646,
+    "UAR_test": 0.7390561699867249,
+    "F1_test": 0.7267177700996399,
+    "AUC_ROC_test": 0.8424705266952515
+}{
+    "task": "tumor",
+    "testset": "ocelot",
+    "augmented": "No",
+    "method": "majorify vote",
+    "num_tasks": 6,
+    "Accuracy_test": 0.7208224534988403,
+    "UAR_test": 0.6583026051521301,
+    "F1_test": 0.7521105408668518,
+    "AUC_ROC_test": 0.745951771736145
+}{
+    "task": "tumor",
+    "testset": "ocelot",
+    "augmented": "No",
+    "method": "cluster based",
+    "num_tasks": 6,
+    "Accuracy_test": 0.7143688201904297,
+    "UAR_test": 0.6457706093788147,
+    "F1_test": 0.7441834211349487,
+    "AUC_ROC_test": 0.8189834356307983
+}{
+    "task": "tumor",
+    "testset": "nucls",
+    "augmented": "No",
+    "method": "majorify vote",
+    "num_tasks": 6,
+    "Accuracy_test": 0.8171567320823669,
+    "UAR_test": 0.9278967380523682,
+    "F1_test": 0.8044775724411011,
+    "AUC_ROC_test": 0.8347777724266052
+}{
+    "task": "tumor",
+    "testset": "nucls",
+    "augmented": "No",
+    "method": "cluster based",
+    "num_tasks": 6,
+    "Accuracy_test": 0.8104025721549988,
+    "UAR_test": 0.8974224925041199,
+    "F1_test": 0.7932865023612976,
+    "AUC_ROC_test": 0.9043173789978027
+}{
+    "task": "tumor",
+    "testset": "pannuke",
+    "augmented": "No",
+    "method": "majorify vote",
+    "num_tasks": 1,
+    "Accuracy_test": 0.770395040512085,
+    "UAR_test": 0.7680962085723877,
+    "F1_test": 0.7327772974967957,
+    "AUC_ROC_test": 0.7700439095497131
+}{
+    "task": "tumor",
+    "testset": "ocelot",
+    "augmented": "No",
+    "method": "majorify vote",
+    "num_tasks": 1,
+    "Accuracy_test": 0.7104693651199341,
+    "UAR_test": 0.6304553747177124,
+    "F1_test": 0.7369672656059265,
+    "AUC_ROC_test": 0.7426303625106812
+}{
+    "task": "tumor",
+    "testset": "nucls",
+    "augmented": "No",
+    "method": "majorify vote",
+    "num_tasks": 1,
+    "Accuracy_test": 0.8226408362388611,
+    "UAR_test": 0.8809512257575989,
+    "F1_test": 0.8010790944099426,
+    "AUC_ROC_test": 0.8319191932678223
+}

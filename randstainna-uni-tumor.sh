@@ -1,43 +1,43 @@
-python train_randstainna.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'pannuke'
-
-python test_randstainna.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'pannuke' \
---test-method 'mv' 
-
-python test_randstainna.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'pannuke' 
-
-######################################
-
 # python train_randstainna.py \
 # --classification-task 'tumor' \
 # --model 'UNI' \
 # --crop-size 96 \
-# --testset 'ocelot' 
+# --testset 'pannuke'
 
 # python test_randstainna.py \
 # --classification-task 'tumor' \
 # --model 'UNI' \
 # --crop-size 96 \
-# --testset 'ocelot'  \
+# --testset 'pannuke' \
 # --test-method 'mv' 
 
-
 # python test_randstainna.py \
 # --classification-task 'tumor' \
 # --model 'UNI' \
 # --crop-size 96 \
-# --testset 'ocelot' 
+# --testset 'pannuke' 
+
+######################################
+
+python train_randstainna.py \
+--classification-task 'tumor' \
+--model 'UNI' \
+--crop-size 96 \
+--testset 'ocelot' 
+
+python test_randstainna.py \
+--classification-task 'tumor' \
+--model 'UNI' \
+--crop-size 96 \
+--testset 'ocelot'  \
+--test-method 'mv' 
+
+
+python test_randstainna.py \
+--classification-task 'tumor' \
+--model 'UNI' \
+--crop-size 96 \
+--testset 'ocelot' 
 
 
 # ######################################
@@ -62,36 +62,36 @@ python test_randstainna.py \
 # --testset 'nucls' 
 
 ## train_randstainna for single headed tasks
-python train_randstainna.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'pannuke' \
---multitask '' 
-
-python test_randstainna.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'pannuke' \
---multitask ''  
-
-######################################
-
 # python train_randstainna.py \
 # --classification-task 'tumor' \
 # --model 'UNI' \
 # --crop-size 96 \
-# --testset 'ocelot' \
+# --testset 'pannuke' \
 # --multitask '' 
-
 
 # python test_randstainna.py \
 # --classification-task 'tumor' \
 # --model 'UNI' \
 # --crop-size 96 \
-# --testset 'ocelot'  \
-# --multitask '' 
+# --testset 'pannuke' \
+# --multitask ''  
+
+######################################
+
+python train_randstainna.py \
+--classification-task 'tumor' \
+--model 'UNI' \
+--crop-size 96 \
+--testset 'ocelot' \
+--multitask '' 
+
+
+python test_randstainna.py \
+--classification-task 'tumor' \
+--model 'UNI' \
+--crop-size 96 \
+--testset 'ocelot'  \
+--multitask '' 
 
 # #####################################
 
