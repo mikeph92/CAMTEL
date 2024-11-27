@@ -7,6 +7,8 @@ import os
 import time
 from PIL import Image
 import pandas as pd
+Image.MAX_IMAGE_PIXELS = None
+
 
 class Dict2Class(object):
       
@@ -192,8 +194,8 @@ class RandStainNA(object):
 
 if __name__ == '__main__':
    
-    dataset_dict = {"TIL": ["lizard", "nucls"]}
-                    #"tumor": ["ocelot", "pannuke", "nucls"]}
+    dataset_dict = {"TIL": ["lizard", "nucls", "cptacCoad", "tcgaBrca"],
+                    "tumor": ["ocelot", "pannuke", "nucls"]}
     
     
     for task in dataset_dict.keys():
@@ -219,6 +221,9 @@ if __name__ == '__main__':
 
                     img_name = os.path.basename(img_path)
                     saved_path = f'/home/michael/data/Augmented/{task}_{testset}/multi'
+                    if os.path.isfile(f'{saved_path}/{img_name}'):
+                        continue
+
                     if not os.path.exists(saved_path):
                         os.makedirs(saved_path)
 
@@ -240,6 +245,9 @@ if __name__ == '__main__':
 
                 img_name = os.path.basename(img_path)
                 saved_path = f'/home/michael/data/Augmented/{task}_{testset}/single'
+                if os.path.isfile(f'{saved_path}/{img_name}'):
+                    continue
+                
                 if not os.path.exists(saved_path):
                     os.makedirs(saved_path)
 
