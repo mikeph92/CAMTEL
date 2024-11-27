@@ -13,6 +13,7 @@ import torch.optim as optim
 import argparse
 import json
 import pandas as pd
+import os
 
 
 parser = argparse.ArgumentParser(description='clustering')
@@ -208,6 +209,7 @@ def test_by_mv(models, dataloader, device):
 if __name__ == '__main__':
 
     df = pd.read_csv(f"clustering/output/clustering_result_{args.classification_task}_{args.testset}.csv")
+    df['img_name'] = df.apply(lambda row: os.path.basename(df['img_path'])[:-4], axis = 1)
     df.dropna(inplace=True)
 
     datasets = []

@@ -246,6 +246,7 @@ def macenko_normalize(img, mean, std):
 if __name__ == '__main__':
 
     df = pd.read_csv(f"clustering/output/clustering_result_{args.classification_task}_{args.testset}.csv")
+    df['img_name'] = df.apply(lambda row: os.path.basename(df['img_path'])[:-4], axis = 1)
     df.dropna(inplace=True)
 
 
@@ -253,9 +254,9 @@ if __name__ == '__main__':
     os.makedirs(save_dir, exist_ok=True)
     
     #normalize training images
-    img_paths = df.apply(lambda row: get_path(row['dataset'],row['img_name']), axis = 1)
+    img_paths = df['img_path'].unique()
     mean, std = compute_training_profile(img_paths)
-    for img_path in img_paths.unique():
+    for img_path in img_paths:
         img = np.array(Image.open(img_path).convert("RGB"))
         img = macenko_normalize(img, mean, std).astype(np.uint8)
         img = Image.fromarray(img)
