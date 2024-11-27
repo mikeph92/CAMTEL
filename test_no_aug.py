@@ -139,10 +139,10 @@ def test_by_cluster(model, dataloader, df_test, device):
          
     # Calculate epoch metrics, and store in a dictionary for wandb
     metrics_dict = {
-        'Accuracy_test': acc_metric.compute(),
-        'UAR_test': uar_metric.compute(),
-        'F1_test': f1_metric.compute(),
-        'AUC_ROC_test': roc_auc_metric.compute(),
+        'Accuracy_test': acc_metric.compute().item(),
+        'UAR_test': uar_metric.compute().item(),
+        'F1_test': f1_metric.compute().item(),
+        'AUC_ROC_test': roc_auc_metric.compute().item(),
     }
 
     #write results into json file
@@ -155,7 +155,7 @@ def test_by_cluster(model, dataloader, df_test, device):
     }
     results.update(metrics_dict)
     with open("outputs/test_result.json", "a") as f:
-        json.dump(results, f)
+        json.dump(results, f, indent=4)
 
     # Compute the confusion matrix
     cm = confusion_matrix.compute().cpu().numpy()
@@ -196,10 +196,10 @@ def test_by_mv(model, dataloader, device):
          
     # Calculate epoch metrics, and store in a dictionary for wandb
     metrics_dict = {
-        'Accuracy_test': acc_metric.compute(),
-        'UAR_test': uar_metric.compute(),
-        'F1_test': f1_metric.compute(),
-        'AUC_ROC_test': roc_auc_metric.compute(),
+        'Accuracy_test': acc_metric.compute().item(),
+        'UAR_test': uar_metric.compute().item(),
+        'F1_test': f1_metric.compute().item(),
+        'AUC_ROC_test': roc_auc_metric.compute().item(),
     }
 
     #write results into json file
@@ -212,7 +212,7 @@ def test_by_mv(model, dataloader, device):
     }
     results.update(metrics_dict)
     with open("outputs/test_result.json", "a") as f:
-        json.dump(results, f)
+        json.dump(results, f, indent=4)
 
     # Compute the confusion matrix
     cm = confusion_matrix.compute().cpu().numpy()

@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from torchvision import models
 import timm
-from tokens import TOKEN_HUGGINGFACE
 
 
 class MultiTaskResNet18(nn.Module):
