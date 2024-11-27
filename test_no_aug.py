@@ -9,7 +9,7 @@ from sklearn.metrics import roc_curve
 from torch.utils.data import DataLoader, random_split
 from sklearn.model_selection import train_test_split
 from datasets import MultiTaskDataset
-from models import MultiTaskResNet50,  MultiTaskResNet18
+from models import MultiTaskResNet50,  MultiTaskResNet18, UNIMultitask
 import torch.optim as optim
 import argparse
 import glob
@@ -22,6 +22,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
+import json
 
 parser = argparse.ArgumentParser(description='clustering')
 parser.add_argument('--classification-task', type=str, default='tumor', help='classification task: tumor or TIL') 
@@ -126,7 +127,7 @@ def test_by_cluster(model, dataloader, df_test, device):
                 # Perform batch prediction for images in this cluster
                 cluster_images = images[cluster_indices]
                 cluster_outputs = model(cluster_images)[cluster]
-                outputs[cluster_indices] = cluster_outputs.squeeze()
+                outputs[cluster_indices] = torch.sigmoid(cluster_outputs).squeeze()
 
  
             acc_metric((outputs > 0.5).int(), labels)
@@ -143,6 +144,18 @@ def test_by_cluster(model, dataloader, df_test, device):
         'F1_test': f1_metric.compute(),
         'AUC_ROC_test': roc_auc_metric.compute(),
     }
+
+    #write results into json file
+    results = {
+        "task": args.classification_task,
+        "testset": args.testset,
+        "augmented": "No",
+        "method": "cluster based",
+        "num_tasks": num_tasks
+    }
+    results.update(metrics_dict)
+    with open("outputs/test_result.json", "a") as f:
+        json.dump(results, f)
 
     # Compute the confusion matrix
     cm = confusion_matrix.compute().cpu().numpy()
@@ -167,7 +180,7 @@ def test_by_mv(model, dataloader, device):
             images, labels = images.to(device), labels.to(device).float()
 
             batch_predictions = model(images)
-            binary_predictions = torch.tensor([[1.0 if value > 0.5 else 0.0 for value in sublist] for sublist in batch_predictions],  device = device)
+            binary_predictions = torch.tensor([[1.0 if torch.sigmoid(value) > 0.5 else 0.0 for value in sublist] for sublist in batch_predictions],  device = device)
 
             outputs, _ = torch.mode(binary_predictions, dim=0)
 
@@ -188,6 +201,18 @@ def test_by_mv(model, dataloader, device):
         'F1_test': f1_metric.compute(),
         'AUC_ROC_test': roc_auc_metric.compute(),
     }
+
+    #write results into json file
+    results = {
+        "task": args.classification_task,
+        "testset": args.testset,
+        "augmented": "No",
+        "method": "majorify vote",
+        "num_tasks": num_tasks
+    }
+    results.update(metrics_dict)
+    with open("outputs/test_result.json", "a") as f:
+        json.dump(results, f)
 
     # Compute the confusion matrix
     cm = confusion_matrix.compute().cpu().numpy()
@@ -220,8 +245,10 @@ if __name__ == '__main__':
 
     if args.model == "ResNet50":
         model = MultiTaskResNet50(num_tasks=num_tasks)
+    elif args.model == "ResNet18":
+        model = MultiTaskResNet18(num_tasks=num_tasks, retrain = True)
     else:
-        model = MultiTaskResNet18(num_tasks=num_tasks)
+        model = UNIMultitask(num_tasks=num_tasks)
 
     model.load_state_dict(state_dict)
     model.to(device)
