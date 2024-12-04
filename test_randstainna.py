@@ -47,7 +47,7 @@ run = wandb.init(project=project_name, name=exp_name)
 # Determine which device on import, and then use that elsewhere.
 device = torch.device("cpu")
 if torch.cuda.is_available():
-    index = 1 if args.model == "ResNet18" else 0
+    index = 1  # if args.model == "ResNet18" else 0
     device = torch.device(f"cuda:{index}")
     torch.cuda.set_device(device)
 
@@ -253,6 +253,7 @@ def augmenting_images(df, saved_path, cluster = None):
             std_hyper = 0.0,
             distribution = 'normal', 
             probability = 1.0,
+            is_training = False,
         )
         if not os.path.exists(saved_path):
             os.makedirs(saved_path)
@@ -274,6 +275,7 @@ def augmenting_images(df, saved_path, cluster = None):
             std_hyper = 0.0,
             distribution = 'normal', 
             probability = 1.0,
+            is_training = False,
         )
         
         if not os.path.exists(saved_path):
