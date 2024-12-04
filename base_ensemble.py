@@ -33,7 +33,7 @@ run = wandb.init(project=project_name, name=exp_name)
 # Determine which device on import, and then use that elsewhere.
 device = torch.device("cpu")
 if torch.cuda.is_available():
-    index = 1 if args.model == "ResNet18" else 0
+    index = 1 # if args.model == "ResNet18" else 0
     device = torch.device(f"cuda:{index}")
     torch.cuda.set_device(device)
 
@@ -232,7 +232,7 @@ if __name__ == '__main__':
         weights.append(w)
 
 
-    batch_size = 32
+    batch_size = 64
     n_epochs = 10
     class_names = ["non-tumor", "tumor"] if args.classification_task == "tumor" else ["non-TIL", "TIL"]
     train_split = 0.8
