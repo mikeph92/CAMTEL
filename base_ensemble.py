@@ -199,7 +199,7 @@ def test_by_mv(models, dataloader, device):
     }
     results.update(metrics_dict)
     with open("outputs/test_result.json", "a") as f:
-        json.dump(results, f, indent=4)
+        json.dump(results, f)
 
     # Compute the confusion matrix
     cm = confusion_matrix.compute().cpu().numpy()
@@ -232,7 +232,7 @@ if __name__ == '__main__':
         weights.append(w)
 
 
-    batch_size = 64
+    batch_size = 32
     n_epochs = 10
     class_names = ["non-tumor", "tumor"] if args.classification_task == "tumor" else ["non-TIL", "TIL"]
     train_split = 0.8
@@ -269,6 +269,10 @@ if __name__ == '__main__':
         model.eval()
         model.to(device)
         models.append(model)
+
+        # Explicitly free unused variables
+        del model, optimizer, dataloaders, train_dataset, val_dataset
+        torch.cuda.empty_cache()
     
     # test time
     df_test = df[df.dataset == args.testset].reset_index()

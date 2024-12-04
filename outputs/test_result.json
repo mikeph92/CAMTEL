@@ -88,4 +88,34 @@
     "UAR_test": 0.8904291391372681,
     "F1_test": 0.7446402907371521,
     "AUC_ROC_test": 0.7744276523590088
+}{
+    "task": "tumor",
+    "testset": "pannuke",
+    "augmented": "No",
+    "method": "base normalization",
+    "num_tasks": 1,
+    "Accuracy_test": 0.7396231889724731,
+    "UAR_test": 0.7022665143013,
+    "F1_test": 0.6885582804679871,
+    "AUC_ROC_test": 0.7339171171188354
+}{
+    "task": "tumor",
+    "testset": "ocelot",
+    "augmented": "No",
+    "method": "base normalization",
+    "num_tasks": 1,
+    "Accuracy_test": 0.7140597701072693,
+    "UAR_test": 0.6462792754173279,
+    "F1_test": 0.7441273927688599,
+    "AUC_ROC_test": 0.7413036823272705
+}{
+    "task": "tumor",
+    "testset": "nucls",
+    "augmented": "No",
+    "method": "base normalization",
+    "num_tasks": 1,
+    "Accuracy_test": 0.7585821747779846,
+    "UAR_test": 0.9083400368690491,
+    "F1_test": 0.7531189918518066,
+    "AUC_ROC_test": 0.7824118733406067
 }
