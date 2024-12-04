@@ -155,7 +155,7 @@ def test_by_cluster(model, dataloader, df_test, device):
     }
     results.update(metrics_dict)
     with open("outputs/test_result.json", "a") as f:
-        json.dump(results, f)
+        f.write(json.dumps(results, f) + '\n')
 
     # Compute the confusion matrix
     cm = confusion_matrix.compute().cpu().numpy()
@@ -212,7 +212,7 @@ def test_by_mv(model, dataloader, device):
     }
     results.update(metrics_dict)
     with open("outputs/test_result.json", "a") as f:
-        json.dump(results, f)
+        f.write(json.dumps(results, f) + '\n')
 
     # Compute the confusion matrix
     cm = confusion_matrix.compute().cpu().numpy()
