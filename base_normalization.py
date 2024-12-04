@@ -199,7 +199,7 @@ def test_by_mv(model, dataloader, device):
     }
     results.update(metrics_dict)
     with open("outputs/test_result.json", "a") as f:
-        f.write(json.dumps(results, f) + '\n')
+        f.write(json.dumps(results) + '\n')
 
     # Compute the confusion matrix
     cm = confusion_matrix.compute().cpu().numpy()

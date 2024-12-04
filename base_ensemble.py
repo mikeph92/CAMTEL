@@ -167,7 +167,8 @@ def test_by_mv(models, dataloader, device):
             outputs = torch.zeros(len(images), len(models)).to(device)
 
             for i, model in enumerate(models):
-                outputs[:, i] = torch.sigmoid(model(images).squeeze())
+                sub_outs = model(images)[0].squeeze()
+                outputs[:, i] = torch.sigmoid(sub_outs)
 
             preds = (outputs.mean(dim=1) > 0.5).int()  # Majority voting
 
@@ -199,7 +200,7 @@ def test_by_mv(models, dataloader, device):
     }
     results.update(metrics_dict)
     with open("outputs/test_result.json", "a") as f:
-        f.write(json.dumps(results, f) + '\n')
+        f.write(json.dumps(results) + '\n')
 
     # Compute the confusion matrix
     cm = confusion_matrix.compute().cpu().numpy()
