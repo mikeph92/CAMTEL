@@ -33,7 +33,7 @@ run = wandb.init(project=project_name, name=exp_name)
 # Determine which device on import, and then use that elsewhere.
 device = torch.device("cpu")
 if torch.cuda.is_available():
-    index = 1 if args.model == "ResNet18" else 0
+    index = 1 # if args.model == "ResNet18" else 0
     device = torch.device(f"cuda:{index}")
     torch.cuda.set_device(device)
 
@@ -199,7 +199,7 @@ def test_by_mv(models, dataloader, device):
     }
     results.update(metrics_dict)
     with open("outputs/test_result.json", "a") as f:
-        json.dump(results, f, indent=4)
+        f.write(json.dumps(results, f) + '\n')
 
     # Compute the confusion matrix
     cm = confusion_matrix.compute().cpu().numpy()
@@ -269,6 +269,10 @@ if __name__ == '__main__':
         model.eval()
         model.to(device)
         models.append(model)
+
+        # Explicitly free unused variables
+        del model, optimizer, dataloaders, train_dataset, val_dataset
+        torch.cuda.empty_cache()
     
     # test time
     df_test = df[df.dataset == args.testset].reset_index()

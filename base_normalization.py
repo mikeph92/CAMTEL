@@ -154,21 +154,22 @@ def train_model(model, dataloaders, optimizer, weights, n_epochs, device):
 
 def test_by_mv(model, dataloader, device):    
     # Initialize metrics
-    acc_metric = torchmetrics.classification.BinaryAccuracy()
-    uar_metric = torchmetrics.classification.BinaryRecall()
-    f1_metric = torchmetrics.F1Score(task="binary")
-    roc_auc_metric = torchmetrics.AUROC(task="binary")
+    acc_metric = torchmetrics.classification.BinaryAccuracy().to(device)
+    uar_metric = torchmetrics.classification.BinaryRecall().to(device)
+    f1_metric = torchmetrics.F1Score(task="binary").to(device)
+    roc_auc_metric = torchmetrics.AUROC(task="binary").to(device)
     
     # initialize a confusion matrix torchmetrics object
-    confusion_matrix = torchmetrics.classification.BinaryConfusionMatrix()
+    confusion_matrix = torchmetrics.classification.BinaryConfusionMatrix().to(device)
 
     with torch.no_grad():
 
         for images, labels, _ in dataloader:
             images, labels = images.to(device), labels.to(device).float()
 
-            outputs = torch.sigmoid(model(images).squeeze())
-            preds = [1.0 if torch.sigmoid(value) > 0.5 else 0.0 for value in outputs]
+            outputs = model(images)
+            selected_output = outputs[0].squeeze() 
+            preds = (torch.sigmoid(selected_output) > 0.5).float()
 
             # Accumulate metrics
             acc_metric(preds, labels)
@@ -198,7 +199,7 @@ def test_by_mv(model, dataloader, device):
     }
     results.update(metrics_dict)
     with open("outputs/test_result.json", "a") as f:
-        json.dump(results, f, indent=4)
+        f.write(json.dumps(results, f) + '\n')
 
     # Compute the confusion matrix
     cm = confusion_matrix.compute().cpu().numpy()
@@ -259,15 +260,15 @@ if __name__ == '__main__':
     save_dir = f'/home/michael/data/Normalization/{args.classification_task}_{args.testset}'
     os.makedirs(save_dir, exist_ok=True)
     
-    #normalize training images
-    img_paths = df_train.apply(lambda row: get_path(row['dataset'],row['img_name']), axis = 1)
-    mean, std = compute_training_profile(img_paths)
-    for img_path in img_paths.unique():
-        img = np.array(Image.open(img_path).convert("RGB"))
-        img = macenko_normalize(img, mean, std).astype(np.uint8)
-        img = Image.fromarray(img)
-        img_name = os.path.basename(img_path)
-        img.save(f'{save_dir}/{img_name}')
+    # #normalize training images
+    # img_paths = df_train.apply(lambda row: get_path(row['dataset'],row['img_name']), axis = 1)
+    # mean, std = compute_training_profile(img_paths)
+    # for img_path in img_paths.unique():
+    #     img = np.array(Image.open(img_path).convert("RGB"))
+    #     img = macenko_normalize(img, mean, std).astype(np.uint8)
+    #     img = Image.fromarray(img)
+    #     img_name = os.path.basename(img_path)
+    #     img.save(f'{save_dir}/{img_name}')
 
     datasets = []
     weights = []
@@ -314,7 +315,7 @@ if __name__ == '__main__':
     train_model(model, dataloaders, optimizer, weights, n_epochs, device)
     
     # Saving the model state dictionary locally
-    model_path = f'saved_models/{i}_{exp_name}.pth'
+    model_path = f'saved_models/{exp_name}.pth'
     torch.save(model.state_dict(), model_path)
     model.eval()
     model.to(device)
@@ -322,14 +323,14 @@ if __name__ == '__main__':
     # test time
     df_test = df[df.dataset == args.testset].reset_index()
 
-    #normalize test images
-    img_paths = df_test.apply(lambda row: get_path(row['dataset'],row['img_name']), axis = 1)
-    for img_path in img_paths.unique():
-        img = np.array(Image.open(img_path).convert("RGB"))
-        img = macenko_normalize(img, mean, std).astype(np.uint8)
-        img = Image.fromarray(img)
-        img_name = os.path.basename(img_path)
-        img.save(f'{save_dir}/{img_name}')
+    # #normalize test images
+    # img_paths = df_test.apply(lambda row: get_path(row['dataset'],row['img_name']), axis = 1)
+    # for img_path in img_paths.unique():
+    #     img = np.array(Image.open(img_path).convert("RGB"))
+    #     img = macenko_normalize(img, mean, std).astype(np.uint8)
+    #     img = Image.fromarray(img)
+    #     img_name = os.path.basename(img_path)
+    #     img.save(f'{save_dir}/{img_name}')
 
     dataset_test = RandStainNADataset(df_test, task = args.classification_task, 
                                             testset = args.testset, saved_path = save_dir, crop_size = args.crop_size)

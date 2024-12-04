@@ -4,18 +4,18 @@
 # --crop-size 96 \
 # --testset 'pannuke'
 
-python test_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'pannuke' \
---test-method 'mv' 
+# python test_no_aug.py \
+# --classification-task 'tumor' \
+# --model 'UNI' \
+# --crop-size 96 \
+# --testset 'pannuke' \
+# --test-method 'mv' 
 
-python test_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'pannuke' 
+# python test_no_aug.py \
+# --classification-task 'tumor' \
+# --model 'UNI' \
+# --crop-size 96 \
+# --testset 'pannuke' 
 
 ######################################
 
@@ -25,19 +25,19 @@ python test_no_aug.py \
 # --crop-size 96 \
 # --testset 'ocelot' 
 
-python test_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'ocelot'  \
---test-method 'mv' 
+# python test_no_aug.py \
+# --classification-task 'tumor' \
+# --model 'UNI' \
+# --crop-size 96 \
+# --testset 'ocelot'  \
+# --test-method 'mv' 
 
 
-python test_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'ocelot' 
+# python test_no_aug.py \
+# --classification-task 'tumor' \
+# --model 'UNI' \
+# --crop-size 96 \
+# --testset 'ocelot' 
 
 
 # ######################################
@@ -48,18 +48,18 @@ python test_no_aug.py \
 # --crop-size 96 \
 # --testset 'nucls' 
 
-python test_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'nucls'  \
---test-method 'mv' 
+# python test_no_aug.py \
+# --classification-task 'tumor' \
+# --model 'UNI' \
+# --crop-size 96 \
+# --testset 'nucls'  \
+# --test-method 'mv' 
 
-python test_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'nucls' 
+# python test_no_aug.py \
+# --classification-task 'tumor' \
+# --model 'UNI' \
+# --crop-size 96 \
+# --testset 'nucls' 
 
 ## train_no_aug for single headed tasks
 # python train_no_aug.py \
@@ -102,10 +102,10 @@ python test_no_aug.py \
 # --testset 'nucls' \
 # --multitask '' 
 
-python test_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'nucls'  \
---multitask '' 
+# python test_no_aug.py \
+# --classification-task 'tumor' \
+# --model 'UNI' \
+# --crop-size 96 \
+# --testset 'nucls'  \
+# --multitask '' 
 
