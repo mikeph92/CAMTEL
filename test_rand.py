@@ -46,7 +46,7 @@ run = wandb.init(project=project_name, name=exp_name)
 # Determine which device on import, and then use that elsewhere.
 device = torch.device("cpu")
 if torch.cuda.is_available():
-    index = 1 if args.model == "ResNet18" else 0
+    index = 0 if args.model == "ResNet18" else 1
     device = torch.device(f"cuda:{index}")
     torch.cuda.set_device(device)
 
@@ -139,10 +139,10 @@ def test_by_cluster(model, dataloader, df_test, device):
          
     # Calculate epoch metrics, and store in a dictionary for wandb
     metrics_dict = {
-        'Accuracy_test': acc_metric.compute(),
-        'UAR_test': uar_metric.compute(),
-        'F1_test': f1_metric.compute(),
-        'AUC_ROC_test': roc_auc_metric.compute(),
+        'Accuracy_test': acc_metric.compute().item(),
+        'UAR_test': uar_metric.compute().item(),
+        'F1_test': f1_metric.compute().item(),
+        'AUC_ROC_test': roc_auc_metric.compute().item(),
     }
 
     #write results into json file
@@ -196,10 +196,10 @@ def test_by_mv(model, dataloader, device):
          
     # Calculate epoch metrics, and store in a dictionary for wandb
     metrics_dict = {
-        'Accuracy_test': acc_metric.compute(),
-        'UAR_test': uar_metric.compute(),
-        'F1_test': f1_metric.compute(),
-        'AUC_ROC_test': roc_auc_metric.compute(),
+        'Accuracy_test': acc_metric.compute().item(),
+        'UAR_test': uar_metric.compute().item(),
+        'F1_test': f1_metric.compute().item(),
+        'AUC_ROC_test': roc_auc_metric.compute().item(),
     }
 
     #write results into json file
@@ -240,7 +240,7 @@ if __name__ == '__main__':
         num_tasks  = len(df_train.labelCluster.unique())  #number of clustes in dataset and number of heads in multitask model
 
     # load saved model
-    model_files = glob.glob(f'saved_models/FULL-{args.crop_size}_{multitask}_no-aug_{args.model}_{args.classification_task}_{args.testset}*')
+    model_files = glob.glob(f'saved_models/Nrandstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}*')
     state_dict = torch.load(model_files[0])
 
     if args.model == "ResNet50":

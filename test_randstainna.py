@@ -132,10 +132,10 @@ def test_by_cluster(model, dataloader, df_test, device):
          
     # Calculate epoch metrics, and store in a dictionary for wandb
     metrics_dict = {
-        'Accuracy_test': acc_metric.compute(),
-        'UAR_test': uar_metric.compute(),
-        'F1_test': f1_metric.compute(),
-        'AUC_ROC_test': roc_auc_metric.compute(),
+        'Accuracy_test': acc_metric.compute().item(),
+        'UAR_test': uar_metric.compute().item(),
+        'F1_test': f1_metric.compute().item(),
+        'AUC_ROC_test': roc_auc_metric.compute().item(),
     }
 
     #write results into json file
@@ -148,7 +148,7 @@ def test_by_cluster(model, dataloader, df_test, device):
     }
     results.update(metrics_dict)
     with open("outputs/test_result.json", "a") as f:
-        f.write(json.dumps(results, f) + '\n')
+        f.write(json.dumps(results) + '\n')
 
     # Compute the confusion matrix
     cm = confusion_matrix.compute().cpu().numpy()
@@ -166,7 +166,7 @@ def predict_with_model_and_labels(model, dataloader, task_index, device):
             
             outputs = model(images)[task_index]
             
-            preds = torch.sigmoid(outputs).round()
+            preds = torch.sigmoid(outputs).round().squeeze()
             
             all_preds.append(preds.cpu())  # Move predictions back to the CPU and store
             all_labels.append(labels.cpu())  # Move labels back to the CPU and store
@@ -221,10 +221,10 @@ def test_by_mv(model, dataloaders, device):
          
     # Calculate epoch metrics, and store in a dictionary for wandb
     metrics_dict = {
-        'Accuracy_test': acc_metric.compute(),
-        'UAR_test': uar_metric.compute(),
-        'F1_test': f1_metric.compute(),
-        'AUC_ROC_test': roc_auc_metric.compute(),
+        'Accuracy_test': acc_metric.compute().item(),
+        'UAR_test': uar_metric.compute().item(),
+        'F1_test': f1_metric.compute().item(),
+        'AUC_ROC_test': roc_auc_metric.compute().item(),
     }
 
     #write results into json file
@@ -237,7 +237,7 @@ def test_by_mv(model, dataloaders, device):
     }
     results.update(metrics_dict)
     with open("outputs/test_result.json", "a") as f:
-        f.write(json.dumps(results, f) + '\n')
+        f.write(json.dumps(results) + '\n')
 
     # Compute the confusion matrix
     cm = confusion_matrix.compute().cpu().numpy()
