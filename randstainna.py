@@ -201,7 +201,7 @@ if __name__ == '__main__':
                     "tumor": ["ocelot", "pannuke", "nucls"]}
     
     
-    for task in dataset_dict.keys():
+    for task in ["tumor"]:#dataset_dict.keys():
         for testset in dataset_dict[task]:
             df = pd.read_csv(f"/home/michael/CAMTEL/clustering/output/clustering_result_{task}_{testset}.csv")
                 
@@ -212,7 +212,7 @@ if __name__ == '__main__':
 
                 randstainna = RandStainNA(
                     yaml_file = yaml_path,
-                    std_hyper = 0.0,
+                    std_hyper = -0.8,
                     distribution = 'normal', 
                     probability = 1.0,
                 )
@@ -238,7 +238,7 @@ if __name__ == '__main__':
 
             randstainna = RandStainNA(
                 yaml_file = yaml_path,
-                std_hyper = 0.0,
+                std_hyper = -0.8,
                 distribution = 'normal', 
                 probability = 1.0,
             )

@@ -149,7 +149,7 @@ def test_by_cluster(model, dataloader, df_test, device):
     results = {
         "task": args.classification_task,
         "testset": args.testset,
-        "augmented": "No",
+        "augmented": "YesN",
         "method": "cluster based",
         "num_tasks": num_tasks
     }
@@ -206,7 +206,7 @@ def test_by_mv(model, dataloader, device):
     results = {
         "task": args.classification_task,
         "testset": args.testset,
-        "augmented": "No",
+        "augmented": "YesN",
         "method": "majorify vote",
         "num_tasks": num_tasks
     }

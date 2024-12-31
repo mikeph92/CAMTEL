@@ -352,7 +352,7 @@ if __name__ == '__main__':
     batch_size = 64
 
     # load saved model
-    model_files = glob.glob(f'saved_models/FULL-Nrandstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}*')
+    model_files = glob.glob(f'saved_models/FULL-N0.9randstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}*')
     state_dict = torch.load(model_files[0])
 
     if args.model == "ResNet50":
