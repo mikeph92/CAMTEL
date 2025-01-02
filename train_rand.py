@@ -7,7 +7,7 @@ import wandb
 import torchmetrics
 from torch.utils.data import DataLoader, random_split, ConcatDataset
 from sklearn.model_selection import train_test_split
-from datasets import RandStainNADataset
+from datasets import RandStainNADataset, MultiTaskDataset
 from models import MultiTaskResNet50, MultiTaskResNet18, UNIMultitask
 import torch.optim as optim
 import argparse
@@ -32,13 +32,13 @@ args = parser.parse_args()
 # initiate wandb
 project_name = "ColorBasedMultitask-train-full"
 multitask = "Multitask" if args.multitask else "Single"
-exp_name = f"FULL-N0.9randstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+exp_name = f"Nrandstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 run = wandb.init(project=project_name, name=exp_name)
 
 # Determine which device on import, and then use that elsewhere.
 device = torch.device("cpu")
 if torch.cuda.is_available():
-    index = 0 if args.model == "ResNet18" else 1
+    index = 1 if args.model == "ResNet18" else 0
     device = torch.device(f"cuda:{index}")
     torch.cuda.set_device(device)
 
@@ -189,12 +189,15 @@ if __name__ == '__main__':
 
 
     if not args.multitask:
-        sample,_ = train_test_split(df, train_size=args.sample_size, stratify=df[stratifier], random_state=7)
+        # sample,_ = train_test_split(df, train_size=args.sample_size, stratify=df[stratifier], random_state=7)
+        sample = df.sample(frac=1)
         img_saved_path = f'/home/michael/data/Augmented/{args.classification_task}_{args.testset}/single'
-        dataset = RandStainNADataset(sample.reset_index(), task = args.classification_task, 
+        dataset_aug = RandStainNADataset(sample.reset_index(), task = args.classification_task, 
                                             testset = args.testset, saved_path = img_saved_path, crop_size = args.crop_size)
+        dataset_orig = MultiTaskDataset(sample.reset_index(), args.classification_task, crop_size = args.crop_size)
+        dataset = ConcatDataset([dataset_aug, dataset_orig])
         datasets.append(dataset)
-        w = torch.tensor([dataset.pos_weight], dtype=torch.float32, device=device)
+        w = torch.tensor(dataset_aug.pos_weight, dtype=torch.float32, device=device)
         weights.append(w)
     else:
         num_tasks  = len(df.labelCluster.unique())  #number of clustes in dataset and number of heads in multitask model
@@ -205,9 +208,11 @@ if __name__ == '__main__':
             df_filtered = df[df.labelCluster.isin(clusters_chosen)].reset_index()
             sample,_ = train_test_split(df_filtered, train_size=args.sample_size, stratify=df_filtered[stratifier], random_state=7)
             
-            dataset = RandStainNADataset(sample.reset_index(), task = args.classification_task, 
+            dataset_aug = RandStainNADataset(sample.reset_index(), task = args.classification_task, 
                                             testset = args.testset, saved_path = img_saved_path, crop_size = args.crop_size)
-            w = torch.tensor([dataset.pos_weight], dtype=torch.float32, device=device)
+            dataset_orig = MultiTaskDataset(sample.reset_index(), args.classification_task, crop_size = args.crop_size)
+            dataset = ConcatDataset([dataset_aug, dataset_orig])
+            w = torch.tensor(dataset_aug.pos_weight, dtype=torch.float32, device=device)
                 
             datasets.append(dataset)
             weights.append(w)
