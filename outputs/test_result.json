@@ -17,3 +17,5 @@
 {"task": "tumor","testset": "ocelot","augmented": "No","method": "base normalization","num_tasks": 1,"Accuracy_test": 0.7140597701072693,"UAR_test": 0.6462792754173279,"F1_test": 0.7441273927688599,"AUC_ROC_test": 0.7413036823272705}
 {"task": "tumor","testset": "nucls","augmented": "No","method": "base normalization","num_tasks": 1,"Accuracy_test": 0.7585821747779846,"UAR_test": 0.9083400368690491,"F1_test": 0.7531189918518066,"AUC_ROC_test": 0.7824118733406067}
 {"task": "tumor", "testset": "nucls", "augmented": "No", "method": "majorify vote", "num_tasks": 1, "Accuracy_test": 0.8240647912025452, "UAR_test": 0.8823277950286865, "F1_test": 0.8026080131530762, "AUC_ROC_test": 0.8333356976509094}
+{"task": "tumor", "testset": "pannuke", "augmented": "No", "method": "majorify vote", "num_tasks": 1, "Accuracy_test": 0.7701218128204346, "UAR_test": 0.7666796445846558, "F1_test": 0.732182502746582, "AUC_ROC_test": 0.7695960402488708}
+{"task": "tumor", "testset": "ocelot", "augmented": "No", "method": "majorify vote", "num_tasks": 1, "Accuracy_test": 0.7105512022972107, "UAR_test": 0.6305825114250183, "F1_test": 0.7370611429214478, "AUC_ROC_test": 0.7426939606666565}
