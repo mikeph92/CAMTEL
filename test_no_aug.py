@@ -9,7 +9,7 @@ from sklearn.metrics import roc_curve
 from torch.utils.data import DataLoader, random_split
 from sklearn.model_selection import train_test_split
 from datasets import MultiTaskDataset
-from models import MultiTaskResNet50,  MultiTaskResNet18, UNIMultitask
+from models import MultiTaskResNet50,  MultiTaskResNet18, UNIMultitask, MultiTaskEfficientNet
 import torch.optim as optim
 import argparse
 import glob
@@ -147,6 +147,7 @@ def test_by_cluster(model, dataloader, df_test, device):
 
     #write results into json file
     results = {
+        "model": args.model,
         "task": args.classification_task,
         "testset": args.testset,
         "augmented": "No",
@@ -204,10 +205,11 @@ def test_by_mv(model, dataloader, device):
 
     #write results into json file
     results = {
+        "model": args.model,
         "task": args.classification_task,
         "testset": args.testset,
         "augmented": "No",
-        "method": "majorify vote",
+        "method": "majority vote",
         "num_tasks": num_tasks
     }
     results.update(metrics_dict)
@@ -251,6 +253,8 @@ if __name__ == '__main__':
         model = MultiTaskResNet50(num_tasks=num_tasks)
     elif args.model == "ResNet18":
         model = MultiTaskResNet18(num_tasks=num_tasks, retrain = True)
+    elif args.model == "EfficientNet":
+        model = MultiTaskEfficientNet(num_tasks=num_tasks)
     else:
         model = UNIMultitask(num_tasks=num_tasks)
 

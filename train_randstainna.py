@@ -8,7 +8,7 @@ import torchmetrics
 from torch.utils.data import DataLoader, random_split, ConcatDataset
 from sklearn.model_selection import train_test_split
 from datasets import RandStainNADataset
-from models import MultiTaskResNet50, MultiTaskResNet18, UNIMultitask
+from models import MultiTaskResNet50, MultiTaskResNet18, UNIMultitask, MultiTaskEfficientNet
 import torch.optim as optim
 import argparse
 import os
@@ -32,7 +32,7 @@ args = parser.parse_args()
 # initiate wandb
 project_name = "ColorBasedMultitask-train-full"
 multitask = "Multitask" if args.multitask else "Single"
-exp_name = f"FULL-N0.9randstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+exp_name = f"FULL-Nrandstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 run = wandb.init(project=project_name, name=exp_name)
 
 # Determine which device on import, and then use that elsewhere.
@@ -218,6 +218,8 @@ if __name__ == '__main__':
         model = MultiTaskResNet50(num_tasks=num_tasks, retrain = True)
     elif args.model == "ResNet18":
         model = MultiTaskResNet18(num_tasks=num_tasks, retrain = True)
+    elif args.model == "EfficientNet":
+        model = MultiTaskEfficientNet(num_tasks=num_tasks)
     else:
         model = UNIMultitask(num_tasks=num_tasks)
 
