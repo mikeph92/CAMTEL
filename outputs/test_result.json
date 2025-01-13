@@ -24,3 +24,4 @@
 {"task": "tumor", "testset": "nucls", "augmented": "Yes", "method": "cluster based", "num_tasks": 6, "Accuracy_test": 0.7504618167877197, "UAR_test": 0.9062989354133606, "F1_test": 0.746491014957428, "AUC_ROC_test": 0.8804337978363037}
 {"task": "tumor", "testset": "pannuke", "augmented": "Yes", "method": "majorify vote", "num_tasks": 1, "Accuracy_test": 0.7395795583724976, "UAR_test": 0.688715934753418, "F1_test": 0.684275209903717, "AUC_ROC_test": 0.7318029403686523}
 {"task": "tumor", "testset": "ocelot", "augmented": "Yes", "method": "majorify vote", "num_tasks": 1, "Accuracy_test": 0.7297366261482239, "UAR_test": 0.6997511386871338, "F1_test": 0.7691064476966858, "AUC_ROC_test": 0.7417784929275513}
+{"task": "tumor", "testset": "nucls", "augmented": "Yes", "method": "majorify vote", "num_tasks": 1, "Accuracy_test": 0.7754387259483337, "UAR_test": 0.8987846374511719, "F1_test": 0.7644042372703552, "AUC_ROC_test": 0.7950757145881653}

@@ -9,7 +9,7 @@ from sklearn.metrics import roc_curve
 from torch.utils.data import DataLoader, ConcatDataset
 from sklearn.model_selection import train_test_split
 from datasets import RandStainNADataset, get_path
-from models import MultiTaskResNet50, MultiTaskResNet18, UNIMultitask
+from models import MultiTaskResNet50, MultiTaskResNet18, UNIMultitask, MultiTaskEfficientNet
 import torch.optim as optim
 import argparse
 import glob
@@ -140,6 +140,7 @@ def test_by_cluster(model, dataloader, df_test, device):
 
     #write results into json file
     results = {
+        "model": args.model,
         "task": args.classification_task,
         "testset": args.testset,
         "augmented": "Yes",
@@ -229,6 +230,7 @@ def test_by_mv(model, dataloaders, device):
 
     #write results into json file
     results = {
+        "model": args.model,
         "task": args.classification_task,
         "testset": args.testset,
         "augmented": "Yes",
@@ -352,13 +354,15 @@ if __name__ == '__main__':
     batch_size = 64
 
     # load saved model
-    model_files = glob.glob(f'saved_models/FULL-N0.9randstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}*')
+    model_files = glob.glob(f'saved_models/FULL-Nrandstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}*')
     state_dict = torch.load(model_files[0])
 
     if args.model == "ResNet50":
         model = MultiTaskResNet50(num_tasks=num_tasks)
     elif args.model == "ResNet18":
         model = MultiTaskResNet18(num_tasks=num_tasks, retrain = True)
+    elif args.model == "EfficientNet":
+        model = MultiTaskEfficientNet(num_tasks=num_tasks)
     else:
         model = UNIMultitask(num_tasks=num_tasks)
 
