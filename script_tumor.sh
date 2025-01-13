@@ -68,6 +68,7 @@ python train_no_aug.py \
 --crop-size 96 \
 --testset 'pannuke' \
 --multitask '' 
+
 python test_no_aug.py \
 --classification-task 'tumor' \
 --model 'EfficientNet' \
