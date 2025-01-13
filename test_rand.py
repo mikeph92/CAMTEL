@@ -149,7 +149,7 @@ def test_by_cluster(model, dataloader, df_test, device):
     results = {
         "task": args.classification_task,
         "testset": args.testset,
-        "augmented": "YesN",
+        "augmented": "Yes_Centered_train",
         "method": "cluster based",
         "num_tasks": num_tasks
     }
@@ -206,7 +206,7 @@ def test_by_mv(model, dataloader, device):
     results = {
         "task": args.classification_task,
         "testset": args.testset,
-        "augmented": "YesN",
+        "augmented": "Yes_Centered_train",
         "method": "majorify vote",
         "num_tasks": num_tasks
     }
@@ -240,7 +240,7 @@ if __name__ == '__main__':
         num_tasks  = len(df_train.labelCluster.unique())  #number of clustes in dataset and number of heads in multitask model
 
     # load saved model
-    model_files = glob.glob(f'saved_models/Nrandstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}*')
+    model_files = glob.glob(f'saved_models/N0.9randstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}*')
     state_dict = torch.load(model_files[0])
 
     if args.model == "ResNet50":
