@@ -2,11 +2,9 @@ import torch
 import torch.nn as nn
 from torchvision import models
 import timm
-from tokens import TOKEN_HUGGINGFACE
-
 
 class MultiTaskResNet18(nn.Module):
-    def __init__(self, num_tasks=6, retrain = False):
+    def __init__(self, num_tasks=6, retrain = True):
         super(MultiTaskResNet18, self).__init__()
         
         # Load pre-trained ResNet
@@ -41,7 +39,7 @@ class MultiTaskResNet18(nn.Module):
     #     return features
 
 class MultiTaskResNet50(nn.Module):
-    def __init__(self, num_tasks=6, retrain = False):
+    def __init__(self, num_tasks=6, retrain = True):
         super(MultiTaskResNet50, self).__init__()
         
         # Load pre-trained ResNet
@@ -68,6 +66,36 @@ class MultiTaskResNet50(nn.Module):
         
         return outputs
     
+
+class MultiTaskEfficientNet(nn.Module):
+    def __init__(self, num_tasks=6, retrain=True):
+        super(MultiTaskEfficientNet, self).__init__()
+        
+        # Load pre-trained EfficientNet
+        efficientnet = models.efficientnet_b0(weights='DEFAULT')
+        
+        # Remove the fully connected layer from EfficientNet (replace with identity)
+        self.backbone = nn.Sequential(*list(efficientnet.children())[:-1])
+        
+        # Define separate heads for each task
+        self.heads = nn.ModuleList([nn.Linear(efficientnet.classifier[1].in_features, 1) for _ in range(num_tasks)])
+        
+        # Optionally freeze the backbone layers
+        if not retrain:
+            for param in self.backbone.parameters():
+                param.requires_grad = False
+
+    def forward(self, x):
+        # Forward pass through the shared backbone
+        x = self.backbone(x)
+        x = x.view(x.size(0), -1)  # Flatten features
+        
+        # Pass through each head for binary classification
+        outputs = [head(x) for head in self.heads]
+        
+        return outputs
+
+
 class UNIMultitask(nn.Module):
     def __init__(self, num_tasks, output_dim=1):
         super(UNIMultitask, self).__init__()

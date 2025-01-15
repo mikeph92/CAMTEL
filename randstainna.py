@@ -37,6 +37,7 @@ class RandStainNA(object):
         std_hyper: Optional[float] = 0, 
         distribution: Optional[str] = 'normal', 
         probability: Optional[float] = 1.0 ,
+        is_training: Optional[bool] = True,
     ):
         self.yaml_file = yaml_file
         cfg = get_yaml_data(self.yaml_file)
@@ -56,6 +57,7 @@ class RandStainNA(object):
         self.std_adjust = std_hyper 
         self.color_space = c_s
         self.distribution = distribution 
+        self.is_training = is_training
     
     def _getavgstd(
         self, 
@@ -111,7 +113,8 @@ class RandStainNA(object):
                 cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             )  
 
-        std_adjust = self.std_adjust
+        # std_adjust = self.std_adjust
+        scale_factor = 1.0 if self.is_training else 0.1
 
         # virtual template generation
         tar_avgs = []
@@ -138,12 +141,12 @@ class RandStainNA(object):
             for idx in range(num_of_channel):
                 tar_avg = np_distribution(
                             loc=self.channel_avgs.avg[idx], 
-                            scale=self.channel_avgs.std[idx] * (1 + std_adjust)
+                            scale=self.channel_avgs.std[idx] * scale_factor #(1 + std_adjust)
                         )
 
                 tar_std = np_distribution(
                             loc=self.channel_stds.avg[idx], 
-                            scale=self.channel_stds.std[idx] * (1 + std_adjust)
+                            scale=self.channel_stds.std[idx] * scale_factor # * (1 + std_adjust)
                         )
                 tar_avgs.append(tar_avg)
                 tar_stds.append(tar_std)
@@ -198,7 +201,7 @@ if __name__ == '__main__':
                     "tumor": ["ocelot", "pannuke", "nucls"]}
     
     
-    for task in dataset_dict.keys():
+    for task in ["tumor"]:#dataset_dict.keys():
         for testset in dataset_dict[task]:
             df = pd.read_csv(f"/home/michael/CAMTEL/clustering/output/clustering_result_{task}_{testset}.csv")
                 
@@ -209,7 +212,7 @@ if __name__ == '__main__':
 
                 randstainna = RandStainNA(
                     yaml_file = yaml_path,
-                    std_hyper = 0.0,
+                    std_hyper = -0.8,
                     distribution = 'normal', 
                     probability = 1.0,
                 )
@@ -235,7 +238,7 @@ if __name__ == '__main__':
 
             randstainna = RandStainNA(
                 yaml_file = yaml_path,
-                std_hyper = 0.0,
+                std_hyper = -0.8,
                 distribution = 'normal', 
                 probability = 1.0,
             )

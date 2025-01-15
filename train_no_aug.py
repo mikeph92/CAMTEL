@@ -8,7 +8,7 @@ import torchmetrics
 from torch.utils.data import DataLoader, random_split
 from sklearn.model_selection import train_test_split
 from datasets import MultiTaskDataset
-from models import MultiTaskResNet18, MultiTaskResNet50, UNIMultitask
+from models import MultiTaskResNet18, MultiTaskResNet50, UNIMultitask, MultiTaskEfficientNet
 import torch.optim as optim
 import argparse
 import os
@@ -39,7 +39,7 @@ run = wandb.init(project=project_name, name=exp_name)
 # Determine which device on import, and then use that elsewhere.
 device = torch.device("cpu")
 if torch.cuda.is_available():
-    index = 1 if args.model == "ResNet18" else 0
+    index = 1 #if args.model == "ResNet18" else 0
     device = torch.device(f"cuda:{index}")
     torch.cuda.set_device(device)
 
@@ -211,6 +211,8 @@ if __name__ == '__main__':
         model = MultiTaskResNet50(num_tasks=num_tasks, retrain = True)
     elif args.model == "ResNet18":
         model = MultiTaskResNet18(num_tasks=num_tasks, retrain = True)
+    elif args.model == "EfficientNet":
+        model = MultiTaskEfficientNet(num_tasks=num_tasks)
     else:
         model = UNIMultitask(num_tasks=num_tasks)
         

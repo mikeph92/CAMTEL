@@ -7,8 +7,8 @@ import wandb
 import torchmetrics
 from torch.utils.data import DataLoader, random_split, ConcatDataset
 from sklearn.model_selection import train_test_split
-from datasets import MultiTaskDatasetRandStainNA
-from models import MultiTaskResNet50, MultiTaskResNet18
+from datasets import RandStainNADataset, MultiTaskDataset
+from models import MultiTaskResNet50, MultiTaskResNet18, UNIMultitask
 import torch.optim as optim
 import argparse
 import os
@@ -32,13 +32,13 @@ args = parser.parse_args()
 # initiate wandb
 project_name = "ColorBasedMultitask-train-full"
 multitask = "Multitask" if args.multitask else "Single"
-exp_name = f"FULL-randstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+exp_name = f"N0.9randstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 run = wandb.init(project=project_name, name=exp_name)
 
 # Determine which device on import, and then use that elsewhere.
 device = torch.device("cpu")
 if torch.cuda.is_available():
-    index = 1 if args.model == "ResNet18" else 0
+    index = 1 #if args.model == "ResNet18" else 0
     device = torch.device(f"cuda:{index}")
     torch.cuda.set_device(device)
 
@@ -58,16 +58,6 @@ def plot_confusion_matrix(cm, class_names):
     ax.set_ylabel('True')
 
     plt.savefig(f'plots/{exp_name}.png')
-    
-def count_classes(preds):
-    '''
-    Counts the number of predictions per class given preds, a tensor
-    shaped [batch, n_classes], where the maximum per preds[i]
-    is considered the "predicted class" for batch element i.
-    '''
-    pred_classes = preds.argmax(dim=1)
-    n_classes = preds.shape[1]
-    return [(pred_classes == c).sum().item() for c in range(n_classes)]
 
 def train_epoch(model, optimizer, weights, dataloaders,  num_tasks, device):
 
@@ -199,24 +189,30 @@ if __name__ == '__main__':
 
 
     if not args.multitask:
-        sample,_ = train_test_split(df, train_size=args.sample_size, stratify=df[stratifier], random_state=7)
-        cluster = None
-        dataset = MultiTaskDatasetRandStainNA(sample.reset_index(), task = args.classification_task, 
-                                            testset = args.testset, cluster = cluster, crop_size = args.crop_size)
+        # sample,_ = train_test_split(df, train_size=args.sample_size, stratify=df[stratifier], random_state=7)
+        sample = df.sample(frac=1)
+        img_saved_path = f'/home/michael/data/Augmented/{args.classification_task}_{args.testset}/single'
+        dataset_aug = RandStainNADataset(sample.reset_index(), task = args.classification_task, 
+                                            testset = args.testset, saved_path = img_saved_path, crop_size = args.crop_size)
+        dataset_orig = MultiTaskDataset(sample.reset_index(), args.classification_task, crop_size = args.crop_size)
+        dataset = ConcatDataset([dataset_aug, dataset_orig])
         datasets.append(dataset)
-        w = torch.tensor([dataset.pos_weight], dtype=torch.float32, device=device)
+        w = torch.tensor(dataset_aug.pos_weight, dtype=torch.float32, device=device)
         weights.append(w)
     else:
         num_tasks  = len(df.labelCluster.unique())  #number of clustes in dataset and number of heads in multitask model
+        img_saved_path = f'/home/michael/data/Augmented/{args.classification_task}_{args.testset}/multi'
         for i in range(num_tasks):
-            clusters_chosen = [i] #np.random.choice(range(num_tasks),4,replace=False)
+            clusters_chosen = [i] 
 
             df_filtered = df[df.labelCluster.isin(clusters_chosen)].reset_index()
             sample,_ = train_test_split(df_filtered, train_size=args.sample_size, stratify=df_filtered[stratifier], random_state=7)
             
-            dataset = MultiTaskDatasetRandStainNA(sample.reset_index(), task = args.classification_task, 
-                                            testset = args.testset, cluster = i, crop_size = args.crop_size)
-            w = torch.tensor([dataset.pos_weight], dtype=torch.float32, device=device)
+            dataset_aug = RandStainNADataset(sample.reset_index(), task = args.classification_task, 
+                                            testset = args.testset, saved_path = img_saved_path, crop_size = args.crop_size)
+            dataset_orig = MultiTaskDataset(sample.reset_index(), args.classification_task, crop_size = args.crop_size)
+            dataset = ConcatDataset([dataset_aug, dataset_orig])
+            w = torch.tensor(dataset_aug.pos_weight, dtype=torch.float32, device=device)
                 
             datasets.append(dataset)
             weights.append(w)
@@ -225,11 +221,13 @@ if __name__ == '__main__':
     # Instantiate the model
     if args.model == "ResNet50":
         model = MultiTaskResNet50(num_tasks=num_tasks, retrain = True)
-    else:
+    elif args.model == "ResNet18":
         model = MultiTaskResNet18(num_tasks=num_tasks, retrain = True)
+    else:
+        model = UNIMultitask(num_tasks=num_tasks)
 
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
-    batch_size = 96
+    batch_size = 64
     n_epochs = 10
     class_names = ["non-tumor", "tumor"] if args.classification_task == "tumor" else ["non-TIL", "TIL"]
     train_split = 0.8

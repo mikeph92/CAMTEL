@@ -9,7 +9,7 @@ from sklearn.metrics import roc_curve
 from torch.utils.data import DataLoader, ConcatDataset
 from sklearn.model_selection import train_test_split
 from datasets import RandStainNADataset, get_path
-from models import MultiTaskResNet50, MultiTaskResNet18, UNIMultitask
+from models import MultiTaskResNet50, MultiTaskResNet18, UNIMultitask, MultiTaskEfficientNet
 import torch.optim as optim
 import argparse
 import glob
@@ -47,7 +47,7 @@ run = wandb.init(project=project_name, name=exp_name)
 # Determine which device on import, and then use that elsewhere.
 device = torch.device("cpu")
 if torch.cuda.is_available():
-    index = 1 if args.model == "ResNet18" else 0
+    index = 1  # if args.model == "ResNet18" else 0
     device = torch.device(f"cuda:{index}")
     torch.cuda.set_device(device)
 
@@ -132,14 +132,15 @@ def test_by_cluster(model, dataloader, df_test, device):
          
     # Calculate epoch metrics, and store in a dictionary for wandb
     metrics_dict = {
-        'Accuracy_test': acc_metric.compute(),
-        'UAR_test': uar_metric.compute(),
-        'F1_test': f1_metric.compute(),
-        'AUC_ROC_test': roc_auc_metric.compute(),
+        'Accuracy_test': acc_metric.compute().item(),
+        'UAR_test': uar_metric.compute().item(),
+        'F1_test': f1_metric.compute().item(),
+        'AUC_ROC_test': roc_auc_metric.compute().item(),
     }
 
     #write results into json file
     results = {
+        "model": args.model,
         "task": args.classification_task,
         "testset": args.testset,
         "augmented": "Yes",
@@ -148,7 +149,7 @@ def test_by_cluster(model, dataloader, df_test, device):
     }
     results.update(metrics_dict)
     with open("outputs/test_result.json", "a") as f:
-        json.dump(results, f)
+        f.write(json.dumps(results) + '\n')
 
     # Compute the confusion matrix
     cm = confusion_matrix.compute().cpu().numpy()
@@ -166,7 +167,7 @@ def predict_with_model_and_labels(model, dataloader, task_index, device):
             
             outputs = model(images)[task_index]
             
-            preds = torch.sigmoid(outputs).round()
+            preds = torch.sigmoid(outputs).round().squeeze()
             
             all_preds.append(preds.cpu())  # Move predictions back to the CPU and store
             all_labels.append(labels.cpu())  # Move labels back to the CPU and store
@@ -221,14 +222,15 @@ def test_by_mv(model, dataloaders, device):
          
     # Calculate epoch metrics, and store in a dictionary for wandb
     metrics_dict = {
-        'Accuracy_test': acc_metric.compute(),
-        'UAR_test': uar_metric.compute(),
-        'F1_test': f1_metric.compute(),
-        'AUC_ROC_test': roc_auc_metric.compute(),
+        'Accuracy_test': acc_metric.compute().item(),
+        'UAR_test': uar_metric.compute().item(),
+        'F1_test': f1_metric.compute().item(),
+        'AUC_ROC_test': roc_auc_metric.compute().item(),
     }
 
     #write results into json file
     results = {
+        "model": args.model,
         "task": args.classification_task,
         "testset": args.testset,
         "augmented": "Yes",
@@ -237,7 +239,7 @@ def test_by_mv(model, dataloaders, device):
     }
     results.update(metrics_dict)
     with open("outputs/test_result.json", "a") as f:
-        json.dump(results, f)
+        f.write(json.dumps(results) + '\n')
 
     # Compute the confusion matrix
     cm = confusion_matrix.compute().cpu().numpy()
@@ -253,6 +255,7 @@ def augmenting_images(df, saved_path, cluster = None):
             std_hyper = 0.0,
             distribution = 'normal', 
             probability = 1.0,
+            is_training = False,
         )
         if not os.path.exists(saved_path):
             os.makedirs(saved_path)
@@ -274,6 +277,7 @@ def augmenting_images(df, saved_path, cluster = None):
             std_hyper = 0.0,
             distribution = 'normal', 
             probability = 1.0,
+            is_training = False,
         )
         
         if not os.path.exists(saved_path):
@@ -357,6 +361,8 @@ if __name__ == '__main__':
         model = MultiTaskResNet50(num_tasks=num_tasks)
     elif args.model == "ResNet18":
         model = MultiTaskResNet18(num_tasks=num_tasks, retrain = True)
+    elif args.model == "EfficientNet":
+        model = MultiTaskEfficientNet(num_tasks=num_tasks)
     else:
         model = UNIMultitask(num_tasks=num_tasks)
 

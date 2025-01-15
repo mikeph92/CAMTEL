@@ -9,7 +9,7 @@ from sklearn.metrics import roc_curve
 from torch.utils.data import DataLoader, random_split
 from sklearn.model_selection import train_test_split
 from datasets import MultiTaskDataset
-from models import MultiTaskResNet50,  MultiTaskResNet18, UNIMultitask
+from models import MultiTaskResNet50,  MultiTaskResNet18, UNIMultitask, MultiTaskEfficientNet
 import torch.optim as optim
 import argparse
 import glob
@@ -46,7 +46,7 @@ run = wandb.init(project=project_name, name=exp_name)
 # Determine which device on import, and then use that elsewhere.
 device = torch.device("cpu")
 if torch.cuda.is_available():
-    index = 1 if args.model == "ResNet18" else 0
+    index = 1 #if args.model == "ResNet18" else 0
     device = torch.device(f"cuda:{index}")
     torch.cuda.set_device(device)
 
@@ -139,14 +139,15 @@ def test_by_cluster(model, dataloader, df_test, device):
          
     # Calculate epoch metrics, and store in a dictionary for wandb
     metrics_dict = {
-        'Accuracy_test': acc_metric.compute(),
-        'UAR_test': uar_metric.compute(),
-        'F1_test': f1_metric.compute(),
-        'AUC_ROC_test': roc_auc_metric.compute(),
+        'Accuracy_test': acc_metric.compute().item(),
+        'UAR_test': uar_metric.compute().item(),
+        'F1_test': f1_metric.compute().item(),
+        'AUC_ROC_test': roc_auc_metric.compute().item(),
     }
 
     #write results into json file
     results = {
+        "model": args.model,
         "task": args.classification_task,
         "testset": args.testset,
         "augmented": "No",
@@ -155,7 +156,7 @@ def test_by_cluster(model, dataloader, df_test, device):
     }
     results.update(metrics_dict)
     with open("outputs/test_result.json", "a") as f:
-        json.dump(results, f)
+        f.write(json.dumps(results) + '\n')
 
     # Compute the confusion matrix
     cm = confusion_matrix.compute().cpu().numpy()
@@ -196,23 +197,24 @@ def test_by_mv(model, dataloader, device):
          
     # Calculate epoch metrics, and store in a dictionary for wandb
     metrics_dict = {
-        'Accuracy_test': acc_metric.compute(),
-        'UAR_test': uar_metric.compute(),
-        'F1_test': f1_metric.compute(),
-        'AUC_ROC_test': roc_auc_metric.compute(),
+        'Accuracy_test': acc_metric.compute().item(),
+        'UAR_test': uar_metric.compute().item(),
+        'F1_test': f1_metric.compute().item(),
+        'AUC_ROC_test': roc_auc_metric.compute().item(),
     }
 
     #write results into json file
     results = {
+        "model": args.model,
         "task": args.classification_task,
         "testset": args.testset,
         "augmented": "No",
-        "method": "majorify vote",
+        "method": "majority vote",
         "num_tasks": num_tasks
     }
     results.update(metrics_dict)
     with open("outputs/test_result.json", "a") as f:
-        json.dump(results, f)
+        f.write(json.dumps(results) + '\n')
 
     # Compute the confusion matrix
     cm = confusion_matrix.compute().cpu().numpy()
@@ -247,6 +249,8 @@ if __name__ == '__main__':
         model = MultiTaskResNet50(num_tasks=num_tasks)
     elif args.model == "ResNet18":
         model = MultiTaskResNet18(num_tasks=num_tasks, retrain = True)
+    elif args.model == "EfficientNet":
+        model = MultiTaskEfficientNet(num_tasks=num_tasks)
     else:
         model = UNIMultitask(num_tasks=num_tasks)
 
