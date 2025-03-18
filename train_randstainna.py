@@ -35,12 +35,11 @@ multitask = "Multitask" if args.multitask else "Single"
 exp_name = f"FULL-Nrandstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 run = wandb.init(project=project_name, name=exp_name)
 
-# Determine which device on import, and then use that elsewhere.
-device = torch.device("cpu")
-if torch.cuda.is_available():
-    index = 0 if args.model == "ResNet18" else 1
-    device = torch.device(f"cuda:{index}")
-    torch.cuda.set_device(device)
+# Setup for multi-GPU training
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+multi_gpu = torch.cuda.device_count() > 1
+if multi_gpu:
+    print(f"Using {torch.cuda.device_count()} GPUs for training")
 
 def plot_confusion_matrix(cm, class_names):
     '''
@@ -144,8 +143,11 @@ def val_epoch(model, weights, dataloaders, num_tasks, device):
     
 
 
-def train_model(model, dataloaders, optimizer, weights, n_epochs, device, class_names):   
+def train_model(model, dataloaders, optimizer, weights, n_epochs, device, class_names):
+    # Move model to device and wrap with DataParallel if multiple GPUs available
     model.to(device)
+    if multi_gpu:
+        model = nn.DataParallel(model)
     # Train by iterating over epochs
     for epoch in tq.tqdm(range(n_epochs), total=n_epochs, desc='Epochs'):
         train_metrics_dict = train_epoch(model, optimizer, weights, dataloaders, num_tasks, device)
@@ -224,7 +226,8 @@ if __name__ == '__main__':
         model = UNIMultitask(num_tasks=num_tasks)
 
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
-    batch_size = 64
+    # Adjust batch size based on number of GPUs if using DataParallel
+    batch_size = 64 * (torch.cuda.device_count() if multi_gpu else 1)
     n_epochs = 10
     class_names = ["non-tumor", "tumor"] if args.classification_task == "tumor" else ["non-TIL", "TIL"]
     train_split = 0.8
