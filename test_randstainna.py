@@ -44,12 +44,11 @@ method = "" if not args.multitask else f'_{args.test_method}'
 exp_name = f"{args.classification_task}_{args.testset}_{multitask}{method}"
 run = wandb.init(project=project_name, name=exp_name)
 
-# Determine which device on import, and then use that elsewhere.
-device = torch.device("cpu")
-if torch.cuda.is_available():
-    index = 1  # if args.model == "ResNet18" else 0
-    device = torch.device(f"cuda:{index}")
-    torch.cuda.set_device(device)
+# Setup for multi-GPU testing
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+multi_gpu = torch.cuda.device_count() > 1
+if multi_gpu:
+    print(f"Using {torch.cuda.device_count()} GPUs for testing")
 
 
 def plot_confusion_matrix(cm, class_names):
@@ -351,7 +350,8 @@ if __name__ == '__main__':
     if args.multitask:
         num_tasks  = len(df_train.labelCluster.unique())  #number of clustes in dataset and number of heads in multitask model
 
-    batch_size = 64
+    # Adjust batch size based on number of GPUs if using DataParallel
+    batch_size = 64 * (torch.cuda.device_count() if multi_gpu else 1)
 
     # load saved model
     model_files = glob.glob(f'saved_models/FULL-Nrandstainna_{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}*')
@@ -367,7 +367,10 @@ if __name__ == '__main__':
         model = UNIMultitask(num_tasks=num_tasks)
 
     model.load_state_dict(state_dict)
+    # Move model to device and wrap with DataParallel if multiple GPUs available
     model.to(device)
+    if multi_gpu:
+        model = nn.DataParallel(model)
     
 
     if args.multitask:
