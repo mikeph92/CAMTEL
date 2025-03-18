@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import tqdm.notebook as tq
-import wandb
+# import wandb
 import torchmetrics
 from torch.utils.data import DataLoader, random_split
 from sklearn.model_selection import train_test_split
@@ -34,7 +34,7 @@ project_name = "ColorBasedMultitask-full"
 multitask = "Multitask" if args.multitask else "Single"
 retrain =  "Retrained" if args.retrain else "Pretrained"
 exp_name = f"FULL-{args.crop_size}_{multitask}_no-aug_{args.model}_{args.classification_task}_{args.testset}{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-run = wandb.init(project=project_name, name=exp_name)
+# run = wandb.init(project=project_name, name=exp_name)
 
 # Determine which device on import, and then use that elsewhere.
 device = torch.device("cpu")
@@ -150,7 +150,7 @@ def train_model(model, dataloaders, optimizer, weights, n_epochs, device, class_
         train_metrics_dict = train_epoch(model, optimizer, weights, dataloaders, num_tasks, device)
                 
         val_metrics_dict, cm = val_epoch(model, weights, dataloaders, num_tasks, device)
-        wandb.log({**train_metrics_dict, **val_metrics_dict})
+        # wandb.log({**train_metrics_dict, **val_metrics_dict})
         
 
     # Plot confusion matrix from results of last val epoch
@@ -239,4 +239,4 @@ if __name__ == '__main__':
     
     # Saving the model state dictionary locally
     torch.save(model.state_dict(), f'saved_models/{exp_name}.pth')
-    run.finish()
+    # run.finish()

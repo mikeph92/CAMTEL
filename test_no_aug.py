@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import tqdm.notebook as tq
-import wandb
+# import wandb
 import torchmetrics
 from sklearn.metrics import roc_curve
 from torch.utils.data import DataLoader, random_split
@@ -41,7 +41,7 @@ project_name = f"FULL-ColorBasedMultitask-Test-{args.crop_size}-{args.model}-no-
 multitask = "Multitask" if args.multitask else "Single"
 method = "" if not args.multitask else f'_{args.test_method}'
 exp_name = f"{args.classification_task}_{args.testset}_{multitask}{method}"
-run = wandb.init(project=project_name, name=exp_name)
+# run = wandb.init(project=project_name, name=exp_name)
 
 # Determine which device on import, and then use that elsewhere.
 device = torch.device("cpu")
@@ -277,10 +277,10 @@ if __name__ == '__main__':
         test_metrics_dict, cm = test_by_mv(model, dataloader, device)
 
 
-    wandb.log({**test_metrics_dict})
+    # wandb.log({**test_metrics_dict})
         
 
     # Plot confusion matrix from results of last val epoch
     plot_confusion_matrix(cm, class_names)
     
-    run.finish()
+    # run.finish()
