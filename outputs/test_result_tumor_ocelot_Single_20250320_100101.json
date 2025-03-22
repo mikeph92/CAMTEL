@@ -1,0 +1,13 @@
+{
+    "model": "UNI",
+    "task": "tumor",
+    "testset": "ocelot",
+    "augmented": "Yes",
+    "method": "majority vote",
+    "num_tasks": 1,
+    "timestamp": "20250320_100101",
+    "Accuracy": 0.7041426301002502,
+    "UAR": 0.6704153418540955,
+    "F1": 0.7446020841598511,
+    "AUC_ROC": 0.7176925539970398
+}

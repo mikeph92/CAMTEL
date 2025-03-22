@@ -115,7 +115,7 @@ class UNIMultitask(nn.Module):
         
         # Train all parameters of the model
         for param in base_model.parameters():
-            param.requires_grad = True
+            param.requires_grad = False
 
         # Replace the original head with an identity layer (for feature extraction)
         base_model.head = nn.Identity()

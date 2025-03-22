@@ -17,7 +17,7 @@ python test_randstainna.py \
 --crop-size 96 \
 --testset 'pannuke' 
 
-#######################################
+# #######################################
 
 python train_randstainna.py \
 --classification-task 'tumor' \
