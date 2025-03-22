@@ -394,3 +394,12 @@
     "F1_test": 0.7644042372703552,
     "AUC_ROC_test": 0.7950757145881653
 }
+{"model": "EfficientNet", "task": "tumor", "testset": "pannuke", "augmented": "No", "method": "majority vote", "num_tasks": 10, "Accuracy_test": 0.7262238264083862, "UAR_test": 0.6742125153541565, "F1_test": 0.6687283515930176, "AUC_ROC_test": 0.7182793021202087}
+{"model": "EfficientNet", "task": "tumor", "testset": "pannuke", "augmented": "No", "method": "cluster based", "num_tasks": 10, "Accuracy_test": 0.7015653252601624, "UAR_test": 0.6072023510932922, "F1_test": 0.6251617670059204, "AUC_ROC_test": 0.7661435604095459}
+{"model": "EfficientNet", "task": "tumor", "testset": "ocelot", "augmented": "No", "method": "majority vote", "num_tasks": 6, "Accuracy_test": 0.7319117188453674, "UAR_test": 0.6983709931373596, "F1_test": 0.7702136039733887, "AUC_ROC_test": 0.7453931570053101}
+{"model": "EfficientNet", "task": "tumor", "testset": "ocelot", "augmented": "No", "method": "cluster based", "num_tasks": 6, "Accuracy_test": 0.7073062062263489, "UAR_test": 0.665296196937561, "F1_test": 0.745202898979187, "AUC_ROC_test": 0.7854515314102173}
+{"model": "EfficientNet", "task": "tumor", "testset": "nucls", "augmented": "No", "method": "majority vote", "num_tasks": 6, "Accuracy_test": 0.7556573152542114, "UAR_test": 0.9254283905029297, "F1_test": 0.7543432116508484, "AUC_ROC_test": 0.7826714515686035}
+{"model": "EfficientNet", "task": "tumor", "testset": "nucls", "augmented": "No", "method": "cluster based", "num_tasks": 6, "Accuracy_test": 0.7484413385391235, "UAR_test": 0.8886884450912476, "F1_test": 0.7412158250808716, "AUC_ROC_test": 0.8696114420890808}
+{"model": "EfficientNet", "task": "tumor", "testset": "pannuke", "augmented": "No", "method": "majority vote", "num_tasks": 1, "Accuracy_test": 0.679365873336792, "UAR_test": 0.7047247290611267, "F1_test": 0.6430694460868835, "AUC_ROC_test": 0.6832393407821655}
+{"model": "EfficientNet", "task": "tumor", "testset": "ocelot", "augmented": "No", "method": "majority vote", "num_tasks": 1, "Accuracy_test": 0.7223040461540222, "UAR_test": 0.6790856122970581, "F1_test": 0.7588351964950562, "AUC_ROC_test": 0.7396753430366516}
+{"model": "EfficientNet", "task": "tumor", "testset": "nucls", "augmented": "No", "method": "majority vote", "num_tasks": 1, "Accuracy_test": 0.7739955186843872, "UAR_test": 0.8456827998161316, "F1_test": 0.7520949244499207, "AUC_ROC_test": 0.7854024767875671}
