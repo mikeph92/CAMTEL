@@ -61,51 +61,51 @@ python test_no_aug.py \
 --crop-size 96 \
 --testset 'nucls' 
 
-# train_no_aug for single headed tasks
-python train_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'pannuke' \
---multitask '' 
+# # train_no_aug for single headed tasks
+# python train_no_aug.py \
+# --classification-task 'tumor' \
+# --model 'UNI' \
+# --crop-size 96 \
+# --testset 'pannuke' \
+# --multitask '' 
 
-python test_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'pannuke' \
---multitask ''  
+# python test_no_aug.py \
+# --classification-task 'tumor' \
+# --model 'UNI' \
+# --crop-size 96 \
+# --testset 'pannuke' \
+# --multitask ''  
 
-# ######################################
+# # ######################################
 
-python train_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'ocelot' \
---multitask '' 
+# python train_no_aug.py \
+# --classification-task 'tumor' \
+# --model 'UNI' \
+# --crop-size 96 \
+# --testset 'ocelot' \
+# --multitask '' 
 
 
-python test_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'ocelot'  \
---multitask '' 
+# python test_no_aug.py \
+# --classification-task 'tumor' \
+# --model 'UNI' \
+# --crop-size 96 \
+# --testset 'ocelot'  \
+# --multitask '' 
 
-# #####################################
+# # #####################################
 
-python train_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'nucls' \
---multitask '' 
+# python train_no_aug.py \
+# --classification-task 'tumor' \
+# --model 'UNI' \
+# --crop-size 96 \
+# --testset 'nucls' \
+# --multitask '' 
 
-python test_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'nucls'  \
---multitask '' 
+# python test_no_aug.py \
+# --classification-task 'tumor' \
+# --model 'UNI' \
+# --crop-size 96 \
+# --testset 'nucls'  \
+# --multitask '' 
 

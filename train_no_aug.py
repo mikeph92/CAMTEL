@@ -258,10 +258,10 @@ def read_data(args):
     
     # Filter only needed columns
     df_merged_filtered = df_merged[["dataset", "img_name", "centerX", "centerY", 
-                                   "labelTIL", "labelTumor", "labelCluster"]]
+                                   "labelTIL", "labelTumor", "labelCluster"]].reset_index(drop=True) 
 
     # Remove testset data
-    df_merged_filtered = df_merged_filtered[df_merged_filtered.dataset != args.testset]
+    df_merged_filtered = df_merged_filtered[df_merged_filtered.dataset != args.testset].reset_index(drop=True) 
     
     # Remove rows with missing values
     df_merged_filtered.dropna(inplace=True)
@@ -309,6 +309,8 @@ def create_datasets_and_weights(df, args, device):
                 stratify=df_filtered['stratify_key'], 
                 random_state=args.seed
             )
+
+            df_filtered = df[df.labelCluster == i].reset_index(drop=True)
         
         # Create dataset
         dataset = MultiTaskDataset(df_filtered, args.classification_task, crop_size=args.crop_size)
