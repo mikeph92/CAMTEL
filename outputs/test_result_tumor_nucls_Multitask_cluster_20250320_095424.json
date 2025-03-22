@@ -1,0 +1,13 @@
+{
+    "model": "UNI",
+    "task": "tumor",
+    "testset": "nucls",
+    "augmented": "Yes",
+    "method": "cluster based",
+    "num_tasks": 6,
+    "timestamp": "20250320_095424",
+    "Accuracy": 0.6837406158447266,
+    "UAR": 0.8974699974060059,
+    "F1": 0.6970322728157043,
+    "AUC_ROC": 0.8216873407363892
+}
