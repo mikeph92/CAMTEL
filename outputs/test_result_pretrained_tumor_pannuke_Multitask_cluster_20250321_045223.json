@@ -1,0 +1,13 @@
+{
+    "model": "UNI",
+    "task": "tumor",
+    "testset": "pannuke",
+    "augmented": "Yes",
+    "method": "cluster based",
+    "num_tasks": 10,
+    "timestamp": "20250321_045223",
+    "Accuracy": 0.7274191379547119,
+    "UAR": 0.6588106155395508,
+    "F1": 0.6644954085350037,
+    "AUC_ROC": 0.7993512749671936
+}
