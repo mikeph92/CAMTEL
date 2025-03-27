@@ -393,4 +393,12 @@
     "UAR_test": 0.8987846374511719,
     "F1_test": 0.7644042372703552,
     "AUC_ROC_test": 0.7950757145881653
-}
+}{"model": "EfficientNet", "task": "tumor", "testset": "pannuke", "augmented": "Yes", "method": "majorify vote", "num_tasks": 10, "Accuracy_test": 0.7328603267669678, "UAR_test": 0.465397447347641, "F1_test": 0.5880906581878662, "AUC_ROC_test": 0.6919678449630737}
+{"model": "EfficientNet", "task": "tumor", "testset": "pannuke", "augmented": "Yes", "method": "cluster based", "num_tasks": 10, "Accuracy_test": 0.7313467860221863, "UAR_test": 0.5767874121665955, "F1_test": 0.6376680135726929, "AUC_ROC_test": 0.8024976253509521}
+{"model": "EfficientNet", "task": "tumor", "testset": "ocelot", "augmented": "Yes", "method": "majorify vote", "num_tasks": 6, "Accuracy_test": 0.7158942222595215, "UAR_test": 0.6494174599647522, "F1_test": 0.7462429404258728, "AUC_ROC_test": 0.742590606212616}
+{"model": "EfficientNet", "task": "tumor", "testset": "ocelot", "augmented": "Yes", "method": "cluster based", "num_tasks": 6, "Accuracy_test": 0.7135235071182251, "UAR_test": 0.694118320941925, "F1_test": 0.7571412324905396, "AUC_ROC_test": 0.7955071330070496}
+{"model": "EfficientNet", "task": "tumor", "testset": "nucls", "augmented": "Yes", "method": "majorify vote", "num_tasks": 6, "Accuracy_test": 0.7423029541969299, "UAR_test": 0.9406570196151733, "F1_test": 0.747416079044342, "AUC_ROC_test": 0.7738814353942871}
+{"model": "EfficientNet", "task": "tumor", "testset": "nucls", "augmented": "Yes", "method": "cluster based", "num_tasks": 6, "Accuracy_test": 0.6377770900726318, "UAR_test": 0.9471685290336609, "F1_test": 0.6794933080673218, "AUC_ROC_test": 0.8134729862213135}
+{"model": "EfficientNet", "task": "tumor", "testset": "ocelot", "augmented": "Yes", "method": "majorify vote", "num_tasks": 1, "Accuracy_test": 0.7064719200134277, "UAR_test": 0.6547901630401611, "F1_test": 0.7415971159934998, "AUC_ROC_test": 0.7272267937660217}
+{"model": "EfficientNet", "task": "tumor", "testset": "nucls", "augmented": "Yes", "method": "majorify vote", "num_tasks": 1, "Accuracy_test": 0.7510006427764893, "UAR_test": 0.919008731842041, "F1_test": 0.7494966983795166, "AUC_ROC_test": 0.7777479887008667}
+{"model": "EfficientNet", "task": "tumor", "testset": "pannuke", "augmented": "Yes", "method": "majorify vote", "num_tasks": 1, "Accuracy_test": 0.7046055197715759, "UAR_test": 0.6432740688323975, "F1_test": 0.6408872008323669, "AUC_ROC_test": 0.6952284574508667}
