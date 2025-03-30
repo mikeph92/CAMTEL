@@ -288,6 +288,42 @@ def apply_dimensionality_reduction(features: np.ndarray, n_components: int = UMA
     return embedding, reducer
 
 # Clustering Functions
+def cluster_with_kmeans(features: np.ndarray, min_clusters: int, max_clusters: int, metric: str = 'cosine') -> tuple:
+    """
+    Cluster features using K-Means and select the best number of clusters based on silhouette score.
+
+    Args:
+        features (np.ndarray): Input features.
+        min_clusters (int): Minimum number of clusters.
+        max_clusters (int): Maximum number of clusters.
+        metric (str): Distance metric ('cosine' or 'correlation').
+
+    Returns:
+        tuple: Best K-Means model, cluster labels, and best number of clusters.
+    """
+    best_silhouette = -1
+    best_model = None
+    best_labels = None
+    best_k = min_clusters
+
+    for k in range(min_clusters, max_clusters + 1):
+        kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+        labels = kmeans.fit_predict(features)
+        
+        # Calculate silhouette score
+        sil_score = silhouette_score(features, labels, metric=metric)
+        
+        print(f"K-Means with k={k}: Silhouette Score = {sil_score:.3f}")
+
+        if sil_score > best_silhouette:
+            best_silhouette = sil_score
+            best_model = kmeans
+            best_labels = labels
+            best_k = k
+
+    print(f"Best k = {best_k} with Silhouette Score = {best_silhouette:.3f}")
+    return best_model, best_labels, best_k
+
 def cluster_with_hierarchical(features: np.ndarray, min_clusters: int, max_clusters: int, metric: str = 'cosine') -> tuple:
     """
     Cluster features using Hierarchical Clustering (Agglomerative) and select the best number 
@@ -308,10 +344,12 @@ def cluster_with_hierarchical(features: np.ndarray, min_clusters: int, max_clust
     best_k = min_clusters
 
     for k in range(min_clusters, max_clusters + 1):
+        # Note: for AgglomerativeClustering, 'metric' parameter is used instead of 'affinity' 
+        # when using 'cosine' or 'correlation' with 'average' linkage
         model = AgglomerativeClustering(
             n_clusters=k, 
             linkage='average',
-            affinity=metric  # 'cosine' or 'correlation'
+            metric=metric  # 'cosine' or 'correlation'
         )
         labels = model.fit_predict(features)
         
@@ -319,13 +357,11 @@ def cluster_with_hierarchical(features: np.ndarray, min_clusters: int, max_clust
         sil_score = silhouette_score(features, labels, metric=metric)
         
         print(f"Hierarchical with k={k}, metric={metric}: Silhouette Score = {sil_score:.3f}")
-
         if sil_score > best_silhouette:
             best_silhouette = sil_score
             best_model = model
             best_labels = labels
             best_k = k
-
     print(f"Best k = {best_k} with Silhouette Score = {best_silhouette:.3f}")
     return best_model, best_labels, best_k
 def cluster_with_gmm(features: np.ndarray, min_clusters: int, max_clusters: int) -> tuple:
@@ -376,7 +412,7 @@ def cluster_images(
         features (np.ndarray): Input features.
         min_clusters (int): Minimum number of clusters.
         max_clusters (int): Maximum number of clusters.
-        clustering_method (str): Clustering method ('gmm' or 'hierarchical').
+        clustering_method (str): Clustering method ('gmm', 'hierarchical', or 'kmeans').
         distance_metric (str): Distance metric ('cosine' or 'correlation').
 
     Returns:
@@ -384,14 +420,14 @@ def cluster_images(
     """
     print("Applying PCA and then UMAP with noise for clustering...")
     umap_embeddings, umap_model = apply_dimensionality_reduction(features, UMAP_N_COMPONENTS)
-
     if clustering_method == "gmm":
         model, labels, best_k = cluster_with_gmm(umap_embeddings, min_clusters, max_clusters)
     elif clustering_method == "hierarchical":
         model, labels, best_k = cluster_with_hierarchical(umap_embeddings, min_clusters, max_clusters, distance_metric)
+    elif clustering_method == "kmeans":
+        model, labels, best_k = cluster_with_kmeans(umap_embeddings, min_clusters, max_clusters, distance_metric)
     else:
         raise ValueError(f"Unsupported clustering method: {clustering_method}")
-
     # Compute silhouette score
     if len(np.unique(labels)) > 1:  # Need at least 2 clusters for these metrics
         sil_score = silhouette_score(umap_embeddings, labels, metric=distance_metric)
@@ -657,9 +693,9 @@ def main(task: str) -> None:
     else:
         raise ValueError("Task must be 'tumor' or 'TIL'")
 
-    feature_types = ['histogram'] #, 'lab', 'color_moments']
-    clustering_methods = ['gmm', 'hierarchical']
-    distance_metrics = ['cosine'] #, 'correlation']
+    feature_types = ['lab'] # 'histogram', 'lab', 'color_moments'
+    clustering_methods = ['hierarchical', 'kmeans'] # 'gmm' if needed
+    distance_metrics = ['cosine', 'correlation']
     
     for test_set in test_sets:
         for feature_type in feature_types:
