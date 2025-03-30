@@ -657,7 +657,7 @@ def main(task: str) -> None:
     else:
         raise ValueError("Task must be 'tumor' or 'TIL'")
 
-    feature_types = ['histogram'] #, 'lab', 'color_moments']
+    feature_types = ['color_moments'] #, 'lab', 'histogram']
     clustering_methods = ['gmm', 'hierarchical']
     distance_metrics = ['cosine'] #, 'correlation']
     
