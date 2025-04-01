@@ -522,6 +522,7 @@ def save_results(
     clustering_method: str,
     distance_metric: str,
     image_paths: list,
+    datasets: list,
     task: str,
     test_set: str,
     results_dir: str,
@@ -558,15 +559,15 @@ def save_results(
     }
     joblib.dump(params, os.path.join(models_dir, "clustering_params.joblib"))
 
+
+
     # Save clustering results
     results_df = pd.DataFrame({
-        "image_path": image_paths,
-        "cluster_label": cluster_labels,
-        "umap_dim1": umap_embeddings_2d[:, 0],
-        "umap_dim2": umap_embeddings_2d[:, 1]
+        "dataset": datasets,
+        "img_path": image_paths,
+        "labelCluster": cluster_labels
     })
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    results_df.to_csv(os.path.join(results_dir, f"clustering_results_{timestamp}.csv"), index=False)
+    results_df.to_csv(os.path.join(results_dir, f"clustering_result_{task}_{test_set}.csv"), index=False)
 
     # Save evaluation metrics
     if evaluation_metrics[0] is not None:  # Check if metrics were calculated
@@ -576,7 +577,7 @@ def save_results(
             "davies_bouldin_index": [db_score],
             "calinski_harabasz_index": [ch_score]
         })
-        metrics_df.to_csv(os.path.join(results_dir, f"evaluation_metrics_{timestamp}.csv"), index=False)
+        metrics_df.to_csv(os.path.join(results_dir, f"evaluation_metrics_{task}_{test_set}.csv"), index=False)
 
     # Visualize clusters
     visualize_clusters(
@@ -584,7 +585,7 @@ def save_results(
         cluster_labels,
         task,
         test_set,
-        os.path.join(images_dir, f"clusters_{timestamp}.png")
+        os.path.join(images_dir, f"clusters_{task}_{test_set}.png")
     )
 
     # Save representative images
@@ -618,6 +619,8 @@ def process_dataset(
     # Load and filter dataset
     df = pd.read_csv(csv_path)
     df = df[df['dataset'] != test_set]
+    df = df[['dataset', 'img_path']].drop_duplicates()
+    datasets = df['dataset'].tolist()
     image_paths = df['img_path'].tolist()
 
     if not image_paths:
@@ -656,7 +659,7 @@ def process_dataset(
         task, test_set, feature_type, clustering_method, distance_metric
     )
     # Create output directories
-    results_dir, models_dir, images_dir = create_output_directories(task, test_set)
+    _, _, _ = create_output_directories(task, test_set)
 
     # Save results
     save_results(
@@ -670,6 +673,7 @@ def process_dataset(
         clustering_method,
         distance_metric,
         valid_image_paths,
+        datasets,
         task,
         test_set,
         feature_specific_results_dir,
@@ -686,7 +690,7 @@ def main(task: str) -> None:
     """
     if task.lower() == 'tumor':
         csv_path = "/home/michael/CAMTEL/dataset/tumor_dataset.csv"
-        test_sets = ['ocelot'] #, 'pannuke', 'nucls']
+        test_sets = [ 'pannuke', 'nucls'] #'ocelot'
     elif task.lower() == 'til':
         csv_path = "/home/michael/CAMTEL/dataset/TIL_dataset.csv"
         test_sets = ['lizard', 'nucls', 'cptacCoad', 'tcgaBrca']
@@ -694,7 +698,7 @@ def main(task: str) -> None:
         raise ValueError("Task must be 'tumor' or 'TIL'")
 
     feature_types = ['lab'] # 'histogram', 'lab', 'color_moments'
-    clustering_methods = ['hierarchical', 'kmeans'] # 'gmm' if needed
+    clustering_methods = ['kmeans', 'gmm'] #  'hierarchical' if needed
     distance_metrics = ['cosine', 'correlation']
     
     for test_set in test_sets:
