@@ -33,10 +33,11 @@ def get_path(dataset, img_name, datatype):
 class MultiTaskDataset(Dataset):
     def __init__(self, df, task, datatype = 'original', crop_size = 224):
         self.datasets = df['dataset']
-        self.img_names = df['img_name']
+        self.img_paths = df['img_path']
         self.centerXs = df['centerX']
         self.centerYs = df['centerY']
-        self.labels = df['labelTumor'] if task == "tumor" else df['labelTIL']
+        self.labels = df['label']
+        self.clusters = df['labelCluster']
         self.crop_size = crop_size
 
         self.datatype = datatype
@@ -54,8 +55,7 @@ class MultiTaskDataset(Dataset):
         return len(self.labels)
     
     def __getitem__(self, idx):
-        img_name = self.img_names[idx]
-        img_path = get_path(self.datasets[idx], img_name,self.datatype)
+        img_path = self.img_paths[idx]
         full_img = Image.open(img_path)
         if self.datasets[idx] == "lizard":
             crop_size = int(self.crop_size/2)           #lizard dataset has x20 magnification instead of x40
@@ -69,7 +69,8 @@ class MultiTaskDataset(Dataset):
         image = self.transform(image)
 
         label = self.labels[idx]
-        return image, label, img_name
+        cluster = self.clusters[idx]
+        return image, label, cluster
     
 
 # MultiTask Dataset class

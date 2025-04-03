@@ -23,7 +23,7 @@ def parse_arguments():
                         help='Classification task: tumor or TIL')
     parser.add_argument('--testset', type=str, default='ocelot', 
                         help='Dataset used for testing: ocelot, pannuke, nucls (tumor) or lizard, cptacCoad, tcgaBrca, nucls (TIL)')
-    parser.add_argument('--dataset-path', type=str, default='dataset/full_dataset.csv',
+    parser.add_argument('--dataset-path', type=str, default='dataset/tumor_dataset.csv',
                         help='Path to the full dataset CSV file')
     parser.add_argument('--clustering-path', type=str, default='clustering/output',
                         help='Path to the clustering results directory')
@@ -39,7 +39,7 @@ def parse_arguments():
                         help="Backbone: ResNet18, ResNet50, or EfficientNet")
     
     # Training parameters
-    parser.add_argument('--batch-size', type=int, default=32, 
+    parser.add_argument('--batch-size', type=int, default=64, 
                         help="Batch size per GPU")
     parser.add_argument('--epochs', type=int, default=10, 
                         help="Number of training epochs")
@@ -250,15 +250,15 @@ def read_data(args):
     df_clustering = pd.read_csv(clustering_file)
 
     # Extract image name from path
-    df_clustering['img_name'] = df_clustering.apply(lambda row: os.path.basename(row['img_path'])[:-4], axis=1)
+    # df_clustering['img_name'] = df_clustering.apply(lambda row: os.path.basename(row['img_path'])[:-4], axis=1)
 
     # Merge datasets
-    df_merged = pd.merge(df_clustering, df, left_on=['dataset', 'img_name'], 
-                         right_on=['dataset', 'img_name'], how='left')
+    df_merged = pd.merge(df_clustering, df, left_on=['dataset', 'img_path'], 
+                         right_on=['dataset', 'img_path'], how='inner')
     
     # Filter only needed columns
-    df_merged_filtered = df_merged[["dataset", "img_name", "centerX", "centerY", 
-                                   "labelTIL", "labelTumor", "labelCluster"]].reset_index(drop=True) 
+    df_merged_filtered = df_merged[["dataset", "img_path", "centerX", "centerY", 
+                                   "label", "labelCluster"]].reset_index(drop=True) 
 
     # Remove testset data
     df_merged_filtered = df_merged_filtered[df_merged_filtered.dataset != args.testset].reset_index(drop=True) 
@@ -297,7 +297,7 @@ def create_datasets_and_weights(df, args, device):
         # Optional: Sample data
         if args.sample_size < 1.0:
             # Create a stratification key
-            label_col = 'labelTumor' if args.classification_task == 'tumor' else 'labelTIL'
+            label_col = 'label'
             df_filtered['stratify_key'] = df_filtered.apply(
                 lambda row: f"{row[label_col]}_{row['dataset']}", axis=1
             )

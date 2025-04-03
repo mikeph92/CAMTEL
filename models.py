@@ -102,20 +102,20 @@ class UNIMultitask(nn.Module):
         # load pretrained model UNI, and then retrain all blocks
         base_model = timm.create_model("hf-hub:MahmoodLab/uni", pretrained=True, init_values=1e-5, dynamic_img_size=True)
 
-        # Original code that freezes early blocks (commented out)
-        # for name, param in base_model.named_parameters():
-        #     if "blocks" in name:
-        #         block_idx = int(name.split(".")[1])
-        #         if block_idx < 23:  # Freeze all blocks except the last one
-        #             param.requires_grad = False
-        #     elif name in ["patch_embed.proj.weight", "patch_embed.proj.bias", "pos_drop.weight", "pos_drop.bias"]:
-        #         param.requires_grad = False
-        #     else:
-        #         param.requires_grad = True  # Unfreeze "norm", "fc_norm", "head_drop", and "head"
+        # retrain the last few layers of UNI
+        for name, param in base_model.named_parameters():
+            if "blocks" in name:
+                block_idx = int(name.split(".")[1])
+                if block_idx < 23:  # Freeze all blocks except the last one
+                    param.requires_grad = False
+            elif name in ["patch_embed.proj.weight", "patch_embed.proj.bias", "pos_drop.weight", "pos_drop.bias"]:
+                param.requires_grad = False
+            else:
+                param.requires_grad = True  # Unfreeze "norm", "fc_norm", "head_drop", and "head"
         
-        # Train all parameters of the model
-        for param in base_model.parameters():
-            param.requires_grad = False
+        # # Train all parameters of the model
+        # for param in base_model.parameters():
+        #     param.requires_grad = False
 
         # Replace the original head with an identity layer (for feature extraction)
         base_model.head = nn.Identity()
