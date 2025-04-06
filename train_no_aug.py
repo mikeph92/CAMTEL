@@ -1,456 +1,178 @@
+import argparse
 from datetime import datetime
 import numpy as np
 import torch
 import torch.nn as nn
-import tqdm.notebook as tq
+import torch.optim as optim
 import torchmetrics
 from torch.utils.data import DataLoader, random_split
-from sklearn.model_selection import train_test_split
-from datasets import MultiTaskDataset
-from models import MultiTaskResNet18, MultiTaskResNet50, UNIMultitask, MultiTaskEfficientNet
-import torch.optim as optim
-import argparse
-import os
 import pandas as pd
-import seaborn as sn
-import matplotlib.pyplot as plt
+import os
+import wandb
+from datasets import MultiTaskDataset
+from models import UNIMultitask
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='MultiTask Learning for Pathology Image Classification')
-    
-    # Dataset and task parameters
-    parser.add_argument('--classification-task', type=str, default='tumor', 
-                        help='Classification task: tumor or TIL')
-    parser.add_argument('--testset', type=str, default='ocelot', 
-                        help='Dataset used for testing: ocelot, pannuke, nucls (tumor) or lizard, cptacCoad, tcgaBrca, nucls (TIL)')
-    parser.add_argument('--dataset-path', type=str, default='dataset/tumor_dataset.csv',
-                        help='Path to the full dataset CSV file')
-    parser.add_argument('--clustering-path', type=str, default='clustering/output',
-                        help='Path to the clustering results directory')
-    parser.add_argument('--sample-size', type=float, default=0.9,
-                        help='Fraction of data to use for training')
-    
-    # Model parameters
-    parser.add_argument('--multitask', type=bool, default=True, 
-                        help="Enable multitask model")
-    parser.add_argument('--retrain', type=bool, default=True, 
-                        help="Enable retrain base model")
-    parser.add_argument('--model', type=str, default="ResNet18", 
-                        help="Backbone: ResNet18, ResNet50, or EfficientNet")
-    
-    # Training parameters
-    parser.add_argument('--batch-size', type=int, default=64, 
-                        help="Batch size per GPU")
-    parser.add_argument('--epochs', type=int, default=10, 
-                        help="Number of training epochs")
-    parser.add_argument('--lr', type=float, default=1e-4, 
-                        help="Learning rate")
-    parser.add_argument('--train-split', type=float, default=0.8, 
-                        help="Training/validation split ratio")
-    parser.add_argument('--seed', type=int, default=42, 
-                        help="Random seed for reproducibility")
-    parser.add_argument('--crop-size', type=int, default=96,
-                        help="Size of image crops")
-    
-    # Output parameters
-    parser.add_argument('--output-dir', type=str, default='saved_models',
-                        help="Directory to save trained models")
-    parser.add_argument('--project-name', type=str, default='ColorBasedMultitask-full',
-                        help="Project name for experiment tracking")
-    
+    parser.add_argument('--dataset_path', type=str, required=True, help='Path to tumor_dataset.csv')
+    parser.add_argument('--cluster_path', type=str, required=True, help='Path to clustering result directory')
+    parser.add_argument('--output_dir', type=str, default='./models', help='Directory to save models')
+    parser.add_argument('--classification_task', type=str, default='tumor', choices=['tumor', 'TIL'], help='Classification task')
+    parser.add_argument('--testset', type=str, required=True, help='Test dataset name')
+    parser.add_argument('--crop_size', type=int, default=224, help='Crop size for images')
+    parser.add_argument('--epochs', type=int, default=50, help='Number of epochs')
+    parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate')
+    parser.add_argument('--seed', type=int, default=42, help='Random seed')
+    parser.add_argument('--train_split', type=float, default=0.8, help='Train split ratio')
+    parser.add_argument('--multitask', action='store_true', help='Enable multitask learning')
+    parser.add_argument('--lambda_ortho', type=float, default=0.01, help='Weight for orthogonality loss')
     return parser.parse_args()
 
 def setup_device():
-    """Set up the device for training."""
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-        print(f"Using {torch.cuda.device_count()} GPU(s)")
-        return device
-    else:
-        print("Using CPU")
-        return torch.device("cpu")
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def generate_experiment_name(args):
-    """Generate a unique experiment name based on parameters."""
-    multitask = "Multitask" if args.multitask else "Single"
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    
-    return f"no-aug-{args.crop_size}_{multitask}_{args.model}_{args.classification_task}_{args.testset}_{timestamp}"
+def get_max_batch_size(model, device, input_shape):
+    batch_size = 32
+    while True:
+        try:
+            x = torch.randn(batch_size, *input_shape).to(device)
+            model(x)
+            return batch_size
+        except RuntimeError:
+            batch_size //= 2
+            if batch_size < 1:
+                raise ValueError("Cannot find a suitable batch size")
 
-def plot_confusion_matrix(cm, class_names):
-    """Plot confusion matrix.
-    
-    Args:
-        cm: The confusion matrix to plot
-        class_names: Names of the classes
-    """
-    # Normalize the confusion matrix
-    with np.errstate(divide='ignore', invalid='ignore'):
-        cm_normalized = cm.astype(np.float32) / cm.sum(axis=1, keepdims=True)
-        cm_normalized = np.nan_to_num(cm_normalized)
-    
-    df_cm = pd.DataFrame(cm_normalized, class_names, class_names)
-    print(df_cm)
-    
-    # Optional: Create and save visualization
-    # plt.figure(figsize=(10, 7))
-    # sn.heatmap(df_cm, annot=True, cmap="Blues")
-    # plt.ylabel('True label')
-    # plt.xlabel('Predicted label')
-    # plt.title('Confusion Matrix')
-    # plt.savefig(f'confusion_matrix_{datetime.now().strftime("%Y%m%d_%H%M%S")}.png')
-
-def train_epoch(model, optimizer, weights, dataloaders, num_tasks, device):
-    """Train the model for one epoch.
-    
-    Args:
-        model: The model to train
-        optimizer: The optimizer
-        weights: Class weights for loss function
-        dataloaders: Dictionary of dataloaders
-        num_tasks: Number of tasks
-        device: Device to train on
-        
-    Returns:
-        Dictionary of training metrics
-    """
+def train_epoch(model, optimizer, pos_weights, dataloader, num_tasks, device, lambda_ortho):
     model.train()
+    epoch_loss = 0.0
+    for images, labels, clusters in dataloader:
+        images, labels, clusters = images.to(device), labels.to(device), clusters.to(device)
+        optimizer.zero_grad()
+        outputs, _ = model(images)
+        task_loss = 0.0
+        unique_clusters = torch.unique(clusters)
+        if max(unique_clusters) >= num_tasks:
+            raise ValueError(f"Cluster index {max(unique_clusters)} exceeds num_tasks {num_tasks}")
+        for cluster in unique_clusters:
+            mask = clusters == cluster
+            cluster_outputs = outputs[cluster][mask]  # Shape: [num_samples_in_cluster, 1]
+            cluster_labels = labels[mask]  # Shape: [num_samples_in_cluster]
+            pos_weight = pos_weights[cluster]
+            criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+            task_loss += criterion(cluster_outputs.view(-1), cluster_labels.float())
+        # Orthogonality loss
+        ortho_loss = 0.0
+        for i in range(num_tasks):
+            for j in range(i + 1, num_tasks):
+                w_i = model.heads[i][2].weight
+                w_j = model.heads[j][2].weight
+                cos_sim = nn.functional.cosine_similarity(w_i.flatten(), w_j.flatten(), dim=0)
+                ortho_loss += torch.abs(cos_sim)
+        total_loss = task_loss + lambda_ortho * ortho_loss
+        total_loss.backward()
+        optimizer.step()
+        epoch_loss += total_loss.item()
+    return epoch_loss / len(dataloader)
 
-    # Initialize metrics
-    epoch_loss = torchmetrics.MeanMetric().to(device)
-    acc_metric = torchmetrics.classification.BinaryAccuracy().to(device)
-    uar_metric = torchmetrics.classification.BinaryRecall().to(device)
-        
-    for task_idx in range(num_tasks):
-        criterion = nn.BCEWithLogitsLoss(pos_weight=weights[task_idx])
-
-        for images, labels, _ in dataloaders[task_idx]['train']:
-            images, labels = images.to(device), labels.to(device).float()
-
-            optimizer.zero_grad()
-            outputs = model(images)[task_idx].squeeze()
-
-            loss = criterion(outputs, labels)
-            
-            loss.backward()
-            optimizer.step()
-
-            # Accumulate metrics
-            epoch_loss(loss)
-            acc_metric(outputs, labels)
-            uar_metric(outputs, labels)    
-
-    # Calculate epoch metrics
-    metrics_dict = {
-        'Loss_train': epoch_loss.compute().item(),
-        'Accuracy_train': acc_metric.compute().item(),
-        'UAR_train': uar_metric.compute().item(),
-    }
-
-    return metrics_dict
-
-def val_epoch(model, weights, dataloaders, num_tasks, device):
-    """Evaluate the model on the validation set.
-    
-    Args:
-        model: The model to evaluate
-        weights: Class weights for loss function
-        dataloaders: Dictionary of dataloaders
-        num_tasks: Number of tasks
-        device: Device to evaluate on
-        
-    Returns:
-        Dictionary of validation metrics and confusion matrix
-    """
+def val_epoch(model, dataloader, device):
     model.eval()
-    
-    # Initialize metrics
-    epoch_loss = torchmetrics.MeanMetric().to(device)
     acc_metric = torchmetrics.classification.BinaryAccuracy().to(device)
-    uar_metric = torchmetrics.classification.BinaryRecall().to(device)
-    
-    # Initialize confusion matrix
-    confusion_matrix = torchmetrics.classification.BinaryConfusionMatrix().to(device)
-
+    val_loss = 0.0
     with torch.no_grad():
-        for task_idx in range(num_tasks):
-            criterion = nn.BCEWithLogitsLoss(pos_weight=weights[task_idx])
-
-            for images, labels, _ in dataloaders[task_idx]['val']:
-                images, labels = images.to(device), labels.to(device).float()
-                outputs = model(images)[task_idx].squeeze()
-                loss = criterion(outputs, labels)
-
-                # Accumulate metrics
-                epoch_loss(loss)
-                acc_metric(outputs, labels)
-                uar_metric(outputs, labels)
-            
-                # Accumulate confusion matrix 
-                confusion_matrix(outputs, labels)
-
-    # Calculate validation metrics
-    metrics_dict = {
-        'Loss_val': epoch_loss.compute().item(),
-        'Accuracy_val': acc_metric.compute().item(),
-        'UAR_val': uar_metric.compute().item(),
-    }
-
-    # Compute the confusion matrix
-    cm = confusion_matrix.compute().cpu().numpy()
-
-    return metrics_dict, cm
-
-def train_model(model, dataloaders, optimizer, weights, args, device, class_names):   
-    """Train the model for multiple epochs.
-    
-    Args:
-        model: The model to train
-        dataloaders: Dictionary of dataloaders
-        optimizer: The optimizer
-        weights: Class weights for loss function
-        args: Command line arguments
-        device: Device to train on
-        class_names: Names of the classes
-    """
-    model.to(device)
-    num_tasks = len(weights)
-    
-    # Train by iterating over epochs
-    for epoch in tq.tqdm(range(args.epochs), total=args.epochs, desc='Epochs'):
-        train_metrics_dict = train_epoch(model, optimizer, weights, dataloaders, num_tasks, device)
-                
-        val_metrics_dict, cm = val_epoch(model, weights, dataloaders, num_tasks, device)
-        
-        # Print progress
-        print(f"Epoch {epoch+1}/{args.epochs}")
-        print(f"Train Loss: {train_metrics_dict['Loss_train']:.4f}, Train Acc: {train_metrics_dict['Accuracy_train']:.4f}")
-        print(f"Val Loss: {val_metrics_dict['Loss_val']:.4f}, Val Acc: {val_metrics_dict['Accuracy_val']:.4f}")
-        
-        # Uncomment to log to wandb
-        # wandb.log({**train_metrics_dict, **val_metrics_dict})
-
-    # Plot confusion matrix from results of last val epoch
-    plot_confusion_matrix(cm, class_names)
-
-def read_data(args):
-    """Read and preprocess the dataset.
-    
-    Args:
-        args: Command line arguments
-        
-    Returns:
-        Preprocessed DataFrame
-    """
-    # Read the full dataset
-    df = pd.read_csv(args.dataset_path)
-
-    # Read clustering results
-    clustering_file = f"{args.clustering_path}/clustering_result_{args.classification_task}_{args.testset}.csv"
-    df_clustering = pd.read_csv(clustering_file)
-
-    # Extract image name from path
-    # df_clustering['img_name'] = df_clustering.apply(lambda row: os.path.basename(row['img_path'])[:-4], axis=1)
-
-    # Merge datasets
-    df_merged = pd.merge(df_clustering, df, left_on=['dataset', 'img_path'], 
-                         right_on=['dataset', 'img_path'], how='inner')
-    
-    # Filter only needed columns
-    df_merged_filtered = df_merged[["dataset", "img_path", "centerX", "centerY", 
-                                   "label", "labelCluster"]].reset_index(drop=True) 
-
-    # Remove testset data
-    df_merged_filtered = df_merged_filtered[df_merged_filtered.dataset != args.testset].reset_index(drop=True) 
-    
-    # Remove rows with missing values
-    df_merged_filtered.dropna(inplace=True)
-
-    return df_merged_filtered
-
-def create_datasets_and_weights(df, args, device):
-    """Create datasets and class weights.
-    
-    Args:
-        df: Preprocessed DataFrame
-        args: Command line arguments
-        device: Device for training
-        
-    Returns:
-        List of datasets and weights
-    """
-    datasets = []
-    weights = []
-
-    # Determine number of tasks
-    if args.multitask:
-        num_tasks = len(df.labelCluster.unique())  # Number of clusters/heads
-    else:
-        num_tasks = 1  # Single head model
-
-    for i in range(num_tasks):
-        if args.multitask:
-            df_filtered = df[df.labelCluster == i].reset_index()
-        else:
-            df_filtered = df.copy().reset_index()
-        
-        # Optional: Sample data
-        if args.sample_size < 1.0:
-            # Create a stratification key
-            label_col = 'label'
-            df_filtered['stratify_key'] = df_filtered.apply(
-                lambda row: f"{row[label_col]}_{row['dataset']}", axis=1
-            )
-            
-            # Stratified sampling
-            df_filtered, _ = train_test_split(
-                df_filtered, 
-                train_size=args.sample_size, 
-                stratify=df_filtered['stratify_key'], 
-                random_state=args.seed
-            )
-
-            df_filtered = df[df.labelCluster == i].reset_index(drop=True)
-        
-        # Create dataset
-        dataset = MultiTaskDataset(df_filtered, args.classification_task, crop_size=args.crop_size)
-        
-        # Calculate class weights
-        w = torch.tensor([dataset.pos_weight], dtype=torch.float32, device=device)
-
-        datasets.append(dataset)
-        weights.append(w)
-
-    return datasets, weights, num_tasks
-
-def create_dataloaders(datasets, args):
-    """Create dataloaders for training and validation.
-    
-    Args:
-        datasets: List of datasets
-        args: Command line arguments
-        
-    Returns:
-        Dictionary of dataloaders
-    """
-    dataloaders = {}
-    
-    for task_idx, dataset in enumerate(datasets):
-        # Split into train and validation sets
-        train_size = int(args.train_split * len(dataset))
-        val_size = len(dataset) - train_size
-        
-        # Use fixed seed for reproducibility
-        generator = torch.Generator().manual_seed(args.seed)
-        train_dataset, val_dataset = random_split(
-            dataset, [train_size, val_size], generator=generator
-        )        
-
-        # Create dataloaders
-        dataloaders[task_idx] = {
-            'train': DataLoader(
-                train_dataset, 
-                batch_size=args.batch_size, 
-                shuffle=True, 
-                drop_last=True, 
-                num_workers=2, 
-                pin_memory=True
-            ),
-            'val': DataLoader(
-                val_dataset, 
-                batch_size=args.batch_size, 
-                shuffle=False, 
-                drop_last=True, 
-                num_workers=2, 
-                pin_memory=True
-            )
-        }
-    
-    return dataloaders
-
-def create_model(args, num_tasks):
-    """Create and configure the model.
-    
-    Args:
-        args: Command line arguments
-        num_tasks: Number of tasks
-        
-    Returns:
-        Configured model
-    """
-    if args.model == "ResNet50":
-        model = MultiTaskResNet50(num_tasks=num_tasks, retrain=args.retrain)
-    elif args.model == "ResNet18":
-        model = MultiTaskResNet18(num_tasks=num_tasks, retrain=args.retrain)
-    elif args.model == "EfficientNet":
-        model = MultiTaskEfficientNet(num_tasks=num_tasks)
-    else:
-        model = UNIMultitask(num_tasks=num_tasks)
-    
-    # Wrap model with DataParallel if multiple GPUs are available
-    if torch.cuda.device_count() > 1:
-        print(f"Using {torch.cuda.device_count()} GPUs!")
-        model = nn.DataParallel(model)
-    
-    return model
+        for images, labels, clusters in dataloader:
+            images, labels, clusters = images.to(device), labels.to(device), clusters.to(device)
+            outputs, _ = model(images)
+            selected_outputs = torch.stack([outputs[cluster][i] for i, cluster in enumerate(clusters)])
+            loss = nn.BCEWithLogitsLoss()(selected_outputs.squeeze(), labels.float())
+            val_loss += loss.item()
+            preds = (torch.sigmoid(selected_outputs) > 0.5).int().squeeze()  # Ensure 1D
+            acc_metric(preds, labels.int())
+    val_acc = acc_metric.compute().item()
+    val_loss = val_loss / len(dataloader)
+    return val_loss, val_acc
 
 def main():
-    # Parse command line arguments
     args = parse_arguments()
-    
-    # Set up device
     device = setup_device()
-    
-    # Set random seed for reproducibility
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(args.seed)
-    
-    # Generate experiment name
-    exp_name = generate_experiment_name(args)
-    print(f"Experiment: {exp_name}")
-    
-    # Initialize experiment tracking (wandb)
-    # run = wandb.init(project=args.project_name, name=exp_name)
-    
-    # Read and preprocess data
-    df = read_data(args)
-    
-    # Create datasets and weights
-    datasets, weights, num_tasks = create_datasets_and_weights(df, args, device)
-    
-    # Create dataloaders
-    dataloaders = create_dataloaders(datasets, args)
-    
-    # Create model
-    model = create_model(args, num_tasks)
-    
-    # Create optimizer
-    optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    
-    # Define class names
-    class_names = ["non-tumor", "tumor"] if args.classification_task == "tumor" else ["non-TIL", "TIL"]
-    
-    # Create output directory if it doesn't exist
-    os.makedirs(args.output_dir, exist_ok=True)
-    
-    # Train model
-    train_model(model, dataloaders, optimizer, weights, args, device, class_names)
-    
-    # Save model
-    model_path = os.path.join(args.output_dir, f"{exp_name}.pth")
-    
-    # If using DataParallel, save the module
-    if isinstance(model, nn.DataParallel):
-        torch.save(model.module.state_dict(), model_path)
-    else:
-        torch.save(model.state_dict(), model_path)
-    
-    print(f"Model saved to {model_path}")
-    
-    # Finish experiment tracking
-    # run.finish()
 
-if __name__ == '__main__':
+    # Experiment name with timestamp
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    exp_name = f"UNI_{args.classification_task}_{args.testset}_{timestamp}"
+    os.makedirs(args.output_dir, exist_ok=True)
+
+    # Initialize Wandb
+    wandb.init(project="pathology_multitask", name=exp_name)
+
+    # Load and merge datasets
+    df_dataset = pd.read_csv(args.dataset_path)
+    cluster_file = os.path.join(args.cluster_path, f"clustering_result_{args.classification_task}_{args.testset}.csv")
+    df_cluster = pd.read_csv(cluster_file)
+    
+    # Merge on 'dataset' and 'img_path'
+    df = df_dataset.merge(df_cluster[['dataset', 'img_path', 'labelCluster']], 
+                          on=['dataset', 'img_path'], 
+                          how='inner')
+    
+    # Exclude testset from training data
+    train_val_df = df[df.dataset != args.testset].reset_index(drop=True)
+    
+    # Determine num_tasks based on unique clusters in training/validation data
+    unique_clusters = sorted(train_val_df['labelCluster'].unique())
+    num_tasks = len(unique_clusters) if args.multitask else 1
+    if args.multitask:
+        print(f"Multi-task mode enabled. Number of tasks: {num_tasks}, Unique clusters: {unique_clusters}")
+    else:
+        print("Single-task mode enabled. Number of tasks: 1")
+
+    # Compute pos_weights per cluster
+    pos_weights = []
+    for cluster in range(num_tasks):
+        cluster_df = train_val_df[train_val_df['labelCluster'] == cluster]
+        pos_weight = (cluster_df['label'] == 0).sum() / (cluster_df['label'] == 1).sum() if (cluster_df['label'] == 1).sum() > 0 else float('inf')
+        pos_weights.append(pos_weight)
+    pos_weights = torch.tensor(pos_weights, device=device)
+
+    dataset = MultiTaskDataset(train_val_df, args.classification_task, crop_size=args.crop_size)
+    train_size = int(args.train_split * len(dataset))
+    val_size = len(dataset) - train_size
+    train_dataset, val_dataset = random_split(dataset, [train_size, val_size], generator=torch.Generator().manual_seed(args.seed))
+
+    # Initialize model and determine batch size
+    model = UNIMultitask(num_tasks=num_tasks)
+    model.to(device)
+    batch_size = get_max_batch_size(model, device, (3, args.crop_size, args.crop_size))
+    print(f"Using batch size: {batch_size}")
+
+    # DataLoaders with dynamic num_workers
+    num_workers = min(8, os.cpu_count())
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
+    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
+
+    optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3, factor=0.5)
+
+    best_val_acc = 0.0
+    for epoch in range(args.epochs):
+        train_loss = train_epoch(model, optimizer, pos_weights, train_dataloader, num_tasks, device, args.lambda_ortho)
+        val_loss, val_acc = val_epoch(model, val_dataloader, device)
+        scheduler.step(val_loss)
+        print(f"Epoch {epoch+1}/{args.epochs}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
+        wandb.log({"epoch": epoch+1, "train_loss": train_loss, "val_loss": val_loss, "val_acc": val_acc})
+
+        # Save best model
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            model_filename = f"UNI_{args.classification_task}_{args.testset}_valacc{best_val_acc:.4f}_{timestamp}.pth"
+            torch.save(model.state_dict(), os.path.join(args.output_dir, model_filename))
+            print(f"Saved best model: {model_filename}")
+
+    wandb.finish()
+
+if __name__ == "__main__":
     main()
+    

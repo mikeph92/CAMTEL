@@ -1,111 +1,38 @@
-python train_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'pannuke'
+#!/bin/bash
 
-python test_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'pannuke' \
---test-method 'mv' 
+# Define common parameters
+CLASSIFICATION_TASK="tumor"
+CROP_SIZE=96
+TESTSETS=("pannuke" "ocelot" "nucls")
+DATASET_PATH="dataset/tumor_dataset.csv"
+CLUSTER_PATH="clustering/output"
+INFERENCE_PATH="clustering_updated/inference_results"
 
-python test_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'pannuke' 
+# Loop over each test set
+for TESTSET in "${TESTSETS[@]}"; do
+    echo "Processing $TESTSET..."
 
-#######################################
+    # Run training with multitask enabled
+    python train_no_aug.py \
+        --dataset_path "$DATASET_PATH" \
+        --cluster_path "$CLUSTER_PATH" \
+        --classification_task "$CLASSIFICATION_TASK" \
+        --crop_size "$CROP_SIZE" \
+        --testset "$TESTSET" \
+        --multitask
 
-python train_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'ocelot' 
+    # Run testing with multitask enabled and multiple inference methods
+    python test_no_aug.py \
+        --dataset_path "$DATASET_PATH" \
+        --inference_path "$INFERENCE_PATH" \
+        --classification_task "$CLASSIFICATION_TASK" \
+        --crop_size "$CROP_SIZE" \
+        --testset "$TESTSET" \
+        --multitask \
+        --inference_methods cluster weighted_voting weighted_sum
 
-python test_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'ocelot'  \
---test-method 'mv' 
+    echo "Finished $TESTSET."
+    echo "#######################################"
+done
 
-
-python test_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'ocelot' 
-
-
-#######################################
-
-python train_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'nucls' 
-
-python test_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'nucls'  \
---test-method 'mv' 
-
-python test_no_aug.py \
---classification-task 'tumor' \
---model 'UNI' \
---crop-size 96 \
---testset 'nucls' 
-
-# # train_no_aug for single headed tasks
-# python train_no_aug.py \
-# --classification-task 'tumor' \
-# --model 'UNI' \
-# --crop-size 96 \
-# --testset 'pannuke' \
-# --multitask '' 
-
-# python test_no_aug.py \
-# --classification-task 'tumor' \
-# --model 'UNI' \
-# --crop-size 96 \
-# --testset 'pannuke' \
-# --multitask ''  
-
-# # ######################################
-
-# python train_no_aug.py \
-# --classification-task 'tumor' \
-# --model 'UNI' \
-# --crop-size 96 \
-# --testset 'ocelot' \
-# --multitask '' 
-
-
-# python test_no_aug.py \
-# --classification-task 'tumor' \
-# --model 'UNI' \
-# --crop-size 96 \
-# --testset 'ocelot'  \
-# --multitask '' 
-
-# # #####################################
-
-# python train_no_aug.py \
-# --classification-task 'tumor' \
-# --model 'UNI' \
-# --crop-size 96 \
-# --testset 'nucls' \
-# --multitask '' 
-
-# python test_no_aug.py \
-# --classification-task 'tumor' \
-# --model 'UNI' \
-# --crop-size 96 \
-# --testset 'nucls'  \
-# --multitask '' 
-
+echo "All experiments completed."
