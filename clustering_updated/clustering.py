@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import joblib
 from scipy import stats
-from scipy.spatial.distance import cosine, correlation
+from scipy.spatial.distance import cosine, correlation, euclidean
 from skimage.feature import graycomatrix, graycoprops
 import datetime
 
@@ -32,6 +32,10 @@ def cosine_distance(X, Y):
 def correlation_distance(X, Y):
     """Calculate correlation distance between two vectors."""
     return correlation(X, Y)
+
+def euclidean_distance(X, Y):
+    """Calculate Euclidean distance between two vectors."""
+    return euclidean(X, Y)
 
 # Utility Functions
 def create_output_directories(task: str, test_set: str) -> tuple:
@@ -250,13 +254,14 @@ def extract_features(
     return np.array(features), valid_image_paths
 
 # Dimensionality Reduction
-def apply_dimensionality_reduction(features: np.ndarray, n_components: int = UMAP_N_COMPONENTS) -> np.ndarray:
+def apply_dimensionality_reduction(features: np.ndarray, n_components: int = UMAP_N_COMPONENTS, metric: str = 'cosine') -> np.ndarray:
     """
     Apply PCA to remove outliers and then UMAP with noise.
     
     Args:
         features (np.ndarray): Input features.
         n_components (int): Number of components for UMAP.
+        metric (str): Distance metric for UMAP.
         
     Returns:
         np.ndarray: Reduced features.
@@ -281,7 +286,7 @@ def apply_dimensionality_reduction(features: np.ndarray, n_components: int = UMA
         n_neighbors=15,
         min_dist=0.1,
         random_state=42,
-        metric='cosine'  # Use cosine distance
+        metric=metric  # Use specified metric
     )
     embedding = reducer.fit_transform(features_pca_noisy)
     
@@ -296,7 +301,7 @@ def cluster_with_kmeans(features: np.ndarray, min_clusters: int, max_clusters: i
         features (np.ndarray): Input features.
         min_clusters (int): Minimum number of clusters.
         max_clusters (int): Maximum number of clusters.
-        metric (str): Distance metric ('cosine' or 'correlation').
+        metric (str): Distance metric ('cosine', 'correlation', or 'euclidean').
 
     Returns:
         tuple: Best K-Means model, cluster labels, and best number of clusters.
@@ -333,7 +338,7 @@ def cluster_with_hierarchical(features: np.ndarray, min_clusters: int, max_clust
         features (np.ndarray): Input features.
         min_clusters (int): Minimum number of clusters.
         max_clusters (int): Maximum number of clusters.
-        metric (str): Distance metric ('cosine' or 'correlation').
+        metric (str): Distance metric ('cosine', 'correlation', or 'euclidean').
 
     Returns:
         tuple: Best Hierarchical Clustering model, cluster labels, and best number of clusters.
@@ -345,11 +350,11 @@ def cluster_with_hierarchical(features: np.ndarray, min_clusters: int, max_clust
 
     for k in range(min_clusters, max_clusters + 1):
         # Note: for AgglomerativeClustering, 'metric' parameter is used instead of 'affinity' 
-        # when using 'cosine' or 'correlation' with 'average' linkage
+        # when using 'cosine', 'correlation', or 'euclidean' with 'average' linkage
         model = AgglomerativeClustering(
             n_clusters=k, 
             linkage='average',
-            metric=metric  # 'cosine' or 'correlation'
+            metric=metric
         )
         labels = model.fit_predict(features)
         
@@ -364,6 +369,7 @@ def cluster_with_hierarchical(features: np.ndarray, min_clusters: int, max_clust
             best_k = k
     print(f"Best k = {best_k} with Silhouette Score = {best_silhouette:.3f}")
     return best_model, best_labels, best_k
+
 def cluster_with_gmm(features: np.ndarray, min_clusters: int, max_clusters: int) -> tuple:
     """
     Cluster features using Gaussian Mixture Model and select the best number of clusters based on BIC.
@@ -413,13 +419,13 @@ def cluster_images(
         min_clusters (int): Minimum number of clusters.
         max_clusters (int): Maximum number of clusters.
         clustering_method (str): Clustering method ('gmm', 'hierarchical', or 'kmeans').
-        distance_metric (str): Distance metric ('cosine' or 'correlation').
+        distance_metric (str): Distance metric ('cosine', 'correlation', or 'euclidean').
 
     Returns:
         tuple: UMAP model, clustering model, UMAP embeddings, cluster labels, and best k.
     """
     print("Applying PCA and then UMAP with noise for clustering...")
-    umap_embeddings, umap_model = apply_dimensionality_reduction(features, UMAP_N_COMPONENTS)
+    umap_embeddings, umap_model = apply_dimensionality_reduction(features, UMAP_N_COMPONENTS, distance_metric)
     if clustering_method == "gmm":
         model, labels, best_k = cluster_with_gmm(umap_embeddings, min_clusters, max_clusters)
     elif clustering_method == "hierarchical":
@@ -646,7 +652,7 @@ def process_dataset(
 
     # Reduce to 2D for visualization
     print("Running UMAP for visualization (2 dimensions)...")
-    features_pca, _ = apply_dimensionality_reduction(features, min(features.shape[0], features.shape[1]))
+    features_pca, _ = apply_dimensionality_reduction(features, min(features.shape[0], features.shape[1]), distance_metric)
     umap_model_2d = UMAP(
         n_components=UMAP_N_COMPONENTS_VIS,
         n_neighbors=15,
@@ -690,7 +696,7 @@ def main(task: str) -> None:
     """
     if task.lower() == 'tumor':
         csv_path = "/home/michael/CAMTEL/dataset/tumor_dataset.csv"
-        test_sets = [ 'pannuke', 'nucls'] #'ocelot'
+        test_sets = ['pannuke', 'nucls', 'ocelot'] # 'pannuke', 'nucls', 'ocelot'
     elif task.lower() == 'til':
         csv_path = "/home/michael/CAMTEL/dataset/TIL_dataset.csv"
         test_sets = ['lizard', 'nucls', 'cptacCoad', 'tcgaBrca']
@@ -699,7 +705,7 @@ def main(task: str) -> None:
 
     feature_types = ['lab'] # 'histogram', 'lab', 'color_moments'
     clustering_methods = ['kmeans', 'gmm'] #  'hierarchical' if needed
-    distance_metrics = ['cosine', 'correlation']
+    distance_metrics = ['euclidean'] # 'cosine', 'correlation', 'euclidean'
     
     for test_set in test_sets:
         for feature_type in feature_types:
