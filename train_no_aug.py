@@ -5,12 +5,13 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchmetrics
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 import pandas as pd
 import os
 import wandb
 from datasets import MultiTaskDataset
 from models import UNIMultitask
+from sklearn.model_selection import train_test_split
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='MultiTask Learning for Pathology Image Classification')
@@ -20,10 +21,10 @@ def parse_arguments():
     parser.add_argument('--classification_task', type=str, default='tumor', choices=['tumor', 'TIL'], help='Classification task')
     parser.add_argument('--testset', type=str, required=True, help='Test dataset name')
     parser.add_argument('--crop_size', type=int, default=224, help='Crop size for images')
-    parser.add_argument('--epochs', type=int, default=50, help='Number of epochs')
+    parser.add_argument('--epochs', type=int, default=30, help='Number of epochs')
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate')
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
-    parser.add_argument('--train_split', type=float, default=0.8, help='Train split ratio')
+    parser.add_argument('--train_split', type=float, default=0.9, help='Train split ratio')
     parser.add_argument('--multitask', action='store_true', help='Enable multitask learning')
     parser.add_argument('--lambda_ortho', type=float, default=0.01, help='Weight for orthogonality loss')
     return parser.parse_args()
@@ -56,12 +57,11 @@ def train_epoch(model, optimizer, pos_weights, dataloader, num_tasks, device, la
             raise ValueError(f"Cluster index {max(unique_clusters)} exceeds num_tasks {num_tasks}")
         for cluster in unique_clusters:
             mask = clusters == cluster
-            cluster_outputs = outputs[cluster][mask]  # Shape: [num_samples_in_cluster, 1]
-            cluster_labels = labels[mask]  # Shape: [num_samples_in_cluster]
+            cluster_outputs = outputs[cluster][mask]
+            cluster_labels = labels[mask]
             pos_weight = pos_weights[cluster]
             criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
             task_loss += criterion(cluster_outputs.view(-1), cluster_labels.float())
-        # Orthogonality loss
         ortho_loss = 0.0
         for i in range(num_tasks):
             for j in range(i + 1, num_tasks):
@@ -86,7 +86,7 @@ def val_epoch(model, dataloader, device):
             selected_outputs = torch.stack([outputs[cluster][i] for i, cluster in enumerate(clusters)])
             loss = nn.BCEWithLogitsLoss()(selected_outputs.squeeze(), labels.float())
             val_loss += loss.item()
-            preds = (torch.sigmoid(selected_outputs) > 0.5).int().squeeze()  # Ensure 1D
+            preds = (torch.sigmoid(selected_outputs) > 0.5).int().squeeze()
             acc_metric(preds, labels.int())
     val_acc = acc_metric.compute().item()
     val_loss = val_loss / len(dataloader)
@@ -137,10 +137,25 @@ def main():
         pos_weights.append(pos_weight)
     pos_weights = torch.tensor(pos_weights, device=device)
 
-    dataset = MultiTaskDataset(train_val_df, args.classification_task, crop_size=args.crop_size)
-    train_size = int(args.train_split * len(dataset))
-    val_size = len(dataset) - train_size
-    train_dataset, val_dataset = random_split(dataset, [train_size, val_size], generator=torch.Generator().manual_seed(args.seed))
+    # Split based on unique img_path
+    unique_img_paths = train_val_df['img_path'].unique()
+    train_img_paths, val_img_paths = train_test_split(
+        unique_img_paths, 
+        train_size=args.train_split, 
+        random_state=args.seed
+    )
+    
+    # Create train and validation DataFrames based on img_path
+    train_df = train_val_df[train_val_df['img_path'].isin(train_img_paths)].reset_index(drop=True)
+    val_df = train_val_df[train_val_df['img_path'].isin(val_img_paths)].reset_index(drop=True)
+    
+    # Verify split
+    print(f"Train set size: {len(train_df)}, Validation set size: {len(val_df)}")
+    assert len(set(train_img_paths) & set(val_img_paths)) == 0, "Overlap detected between train and validation img_paths!"
+
+    # Create datasets
+    train_dataset = MultiTaskDataset(train_df, args.classification_task, crop_size=args.crop_size)
+    val_dataset = MultiTaskDataset(val_df, args.classification_task, crop_size=args.crop_size)
 
     # Initialize model and determine batch size
     model = UNIMultitask(num_tasks=num_tasks)
@@ -175,4 +190,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
