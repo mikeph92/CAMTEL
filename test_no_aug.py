@@ -21,15 +21,22 @@ def parse_arguments():
     parser.add_argument('--plots_dir', type=str, default='./plots', help='Directory to save plots')
     parser.add_argument('--classification_task', type=str, default='tumor', choices=['tumor', 'TIL'], help='Classification task')
     parser.add_argument('--testset', type=str, required=True, help='Test dataset name')
-    parser.add_argument('--crop_size', type=int, default=224, help='Crop size for images')
+    parser.add_argument('--crop_size', type=int, default=96, help='Crop size for images')
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
     parser.add_argument('--multitask', action='store_true', help='Enable multitask learning')
     parser.add_argument('--inference_methods', type=str, nargs='+', default=['cluster'], 
                         help='List of inference methods: cluster, weighted_voting, weighted_sum')
+    parser.add_argument('--num_gpus', type=int, default=2, help='Number of GPUs to use')
     return parser.parse_args()
 
-def setup_device():
-    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+def setup_device(num_gpus=2):
+    if torch.cuda.is_available() and torch.cuda.device_count() >= num_gpus:
+        # Explicitly set up to use the first two GPUs
+        gpu_ids = list(range(num_gpus))
+        return torch.device(f"cuda:{gpu_ids[0]}"), gpu_ids
+    else:
+        print(f"Warning: Requested {num_gpus} GPUs but only {torch.cuda.device_count()} available. Using CPU or single GPU.")
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu"), []
 
 def find_best_model(models_dir, pattern):
     pattern = re.compile(pattern + r"_valacc(\d+\.\d+)_\d{8}_\d{6}\.pth")
@@ -84,7 +91,7 @@ def main():
         if method not in ALLOWED_METHODS:
             raise ValueError(f"Invalid inference method: {method}. Allowed methods are {ALLOWED_METHODS}")
     
-    device = setup_device()
+    device, gpu_ids = setup_device(args.num_gpus)
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     if torch.cuda.is_available():
@@ -126,16 +133,18 @@ def main():
     if max(unique_test_clusters) >= num_tasks:
         raise ValueError(f"Test data contains cluster indices {unique_test_clusters} that exceed num_tasks {num_tasks}")
 
-    dataset = MultiTaskDataset(df_test, args.classification_task, crop_size=args.crop_size)
+    dataset = MultiTaskDataset(df_test, args.classification_task, crop_size=args.crop_size, is_training=False)
     dataloader = DataLoader(dataset, batch_size=64, shuffle=False, num_workers=min(8, os.cpu_count()), pin_memory=True)
 
     # Load best model
     model = UNIMultitask(num_tasks=num_tasks)
     best_model_path = find_best_model(args.models_dir, exp_name)
     model.load_state_dict(torch.load(best_model_path, map_location=device))
-    if torch.cuda.device_count() > 1:
-        print(f"Using {torch.cuda.device_count()} GPUs!")
-        model = nn.DataParallel(model)
+    
+    # Explicitly wrap model with DataParallel using the specific GPU IDs
+    if len(gpu_ids) > 1:
+        print(f"Using {len(gpu_ids)} GPUs: {gpu_ids}")
+        model = nn.DataParallel(model, device_ids=gpu_ids)
     model.to(device)
 
     # Test each inference method

@@ -20,20 +20,30 @@ def parse_arguments():
     parser.add_argument('--output_dir', type=str, default='./models', help='Directory to save models')
     parser.add_argument('--classification_task', type=str, default='tumor', choices=['tumor', 'TIL'], help='Classification task')
     parser.add_argument('--testset', type=str, required=True, help='Test dataset name')
-    parser.add_argument('--crop_size', type=int, default=224, help='Crop size for images')
+    parser.add_argument('--crop_size', type=int, default=96, help='Crop size for images')
     parser.add_argument('--epochs', type=int, default=30, help='Number of epochs')
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate')
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
     parser.add_argument('--train_split', type=float, default=0.9, help='Train split ratio')
     parser.add_argument('--multitask', action='store_true', help='Enable multitask learning')
     parser.add_argument('--lambda_ortho', type=float, default=0.01, help='Weight for orthogonality loss')
+    parser.add_argument('--num_gpus', type=int, default=2, help='Number of GPUs to use')
     return parser.parse_args()
 
-def setup_device():
-    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+def setup_device(num_gpus):
+    if torch.cuda.is_available() and num_gpus > 0:
+        device = torch.device("cuda")
+        available_gpus = min(torch.cuda.device_count(), num_gpus)
+        print(f"Using {available_gpus} GPUs")
+        if available_gpus < num_gpus:
+            print(f"Warning: Requested {num_gpus} GPUs but only {available_gpus} are available")
+    else:
+        device = torch.device("cpu")
+        print("Using CPU")
+    return device
 
-def get_max_batch_size(model, device, input_shape):
-    batch_size = 32
+def get_max_batch_size(model, device, input_shape, num_gpus):
+    batch_size = 32 * max(1, num_gpus)  # Scale initial batch size with number of GPUs
     while True:
         try:
             x = torch.randn(batch_size, *input_shape).to(device)
@@ -50,7 +60,15 @@ def train_epoch(model, optimizer, pos_weights, dataloader, num_tasks, device, la
     for images, labels, clusters in dataloader:
         images, labels, clusters = images.to(device), labels.to(device), clusters.to(device)
         optimizer.zero_grad()
-        outputs, _ = model(images)
+        
+        # Handle output from DataParallel model (which wraps outputs in a list)
+        outputs_list, _ = model(images)
+        if isinstance(model, nn.DataParallel):
+            # Assuming model returns a tuple (outputs, _) and we want the first element
+            outputs = outputs_list
+        else:
+            outputs = outputs_list
+            
         task_loss = 0.0
         unique_clusters = torch.unique(clusters)
         if max(unique_clusters) >= num_tasks:
@@ -62,13 +80,19 @@ def train_epoch(model, optimizer, pos_weights, dataloader, num_tasks, device, la
             pos_weight = pos_weights[cluster]
             criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
             task_loss += criterion(cluster_outputs.view(-1), cluster_labels.float())
+        
+        # For orthogonality loss, we need to access the actual model weights
+        # If using DataParallel, access the module attribute
+        actual_model = model.module if isinstance(model, nn.DataParallel) else model
+        
         ortho_loss = 0.0
         for i in range(num_tasks):
             for j in range(i + 1, num_tasks):
-                w_i = model.heads[i][2].weight
-                w_j = model.heads[j][2].weight
+                w_i = actual_model.heads[i][2].weight
+                w_j = actual_model.heads[j][2].weight
                 cos_sim = nn.functional.cosine_similarity(w_i.flatten(), w_j.flatten(), dim=0)
                 ortho_loss += torch.abs(cos_sim)
+                
         total_loss = task_loss + lambda_ortho * ortho_loss
         total_loss.backward()
         optimizer.step()
@@ -82,7 +106,14 @@ def val_epoch(model, dataloader, device):
     with torch.no_grad():
         for images, labels, clusters in dataloader:
             images, labels, clusters = images.to(device), labels.to(device), clusters.to(device)
-            outputs, _ = model(images)
+            
+            # Handle output from DataParallel model
+            outputs_list, _ = model(images)
+            if isinstance(model, nn.DataParallel):
+                outputs = outputs_list
+            else:
+                outputs = outputs_list
+                
             selected_outputs = torch.stack([outputs[cluster][i] for i, cluster in enumerate(clusters)])
             loss = nn.BCEWithLogitsLoss()(selected_outputs.squeeze(), labels.float())
             val_loss += loss.item()
@@ -94,7 +125,7 @@ def val_epoch(model, dataloader, device):
 
 def main():
     args = parse_arguments()
-    device = setup_device()
+    device = setup_device(args.num_gpus)
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     if torch.cuda.is_available():
@@ -107,6 +138,12 @@ def main():
 
     # Initialize Wandb
     wandb.init(project="pathology_multitask", name=exp_name)
+
+    # Log GPU information
+    if torch.cuda.is_available():
+        gpu_count = min(torch.cuda.device_count(), args.num_gpus)
+        gpu_names = [torch.cuda.get_device_name(i) for i in range(gpu_count)]
+        wandb.log({"gpu_count": gpu_count, "gpu_names": gpu_names})
 
     # Load and merge datasets
     df_dataset = pd.read_csv(args.dataset_path)
@@ -157,10 +194,19 @@ def main():
     train_dataset = MultiTaskDataset(train_df, args.classification_task, crop_size=args.crop_size)
     val_dataset = MultiTaskDataset(val_df, args.classification_task, crop_size=args.crop_size)
 
-    # Initialize model and determine batch size
+    # Initialize model
     model = UNIMultitask(num_tasks=num_tasks)
+    
+    # Wrap model with DataParallel if using multiple GPUs
+    if torch.cuda.is_available() and args.num_gpus > 1:
+        if torch.cuda.device_count() > 1:
+            print(f"Using {min(torch.cuda.device_count(), args.num_gpus)} GPUs with DataParallel")
+            model = nn.DataParallel(model, device_ids=list(range(min(torch.cuda.device_count(), args.num_gpus))))
+    
     model.to(device)
-    batch_size = get_max_batch_size(model, device, (3, args.crop_size, args.crop_size))
+    
+    # Determine batch size
+    batch_size = get_max_batch_size(model, device, (3, args.crop_size, args.crop_size), args.num_gpus)
     print(f"Using batch size: {batch_size}")
 
     # DataLoaders with dynamic num_workers
@@ -183,10 +229,13 @@ def main():
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             model_filename = f"UNI_{args.classification_task}_{args.testset}_valacc{best_val_acc:.4f}_{timestamp}.pth"
-            torch.save(model.state_dict(), os.path.join(args.output_dir, model_filename))
+            # Save the model state dict (access .module if it's a DataParallel model to save the actual model)
+            torch.save(model.module.state_dict() if isinstance(model, nn.DataParallel) else model.state_dict(), 
+                       os.path.join(args.output_dir, model_filename))
             print(f"Saved best model: {model_filename}")
 
     wandb.finish()
 
 if __name__ == "__main__":
     main()
+    
