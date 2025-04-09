@@ -21,13 +21,14 @@ def parse_arguments():
     parser.add_argument('--classification_task', type=str, default='tumor', choices=['tumor', 'TIL'], help='Classification task')
     parser.add_argument('--testset', type=str, required=True, help='Test dataset name')
     parser.add_argument('--crop_size', type=int, default=96, help='Crop size for images')
-    parser.add_argument('--epochs', type=int, default=30, help='Number of epochs')
+    parser.add_argument('--epochs', type=int, default=20, help='Number of epochs')
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate')
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
     parser.add_argument('--train_split', type=float, default=0.9, help='Train split ratio')
     parser.add_argument('--multitask', action='store_true', help='Enable multitask learning')
     parser.add_argument('--lambda_ortho', type=float, default=0.01, help='Weight for orthogonality loss')
     parser.add_argument('--num_gpus', type=int, default=2, help='Number of GPUs to use')
+    parser.add_argument('--num_chunks', type=int, default=4, help='Number of chunks to split each batch into for more frequent updates')
     return parser.parse_args()
 
 def setup_device(num_gpus):
@@ -54,50 +55,84 @@ def get_max_batch_size(model, device, input_shape, num_gpus):
             if batch_size < 1:
                 raise ValueError("Cannot find a suitable batch size")
 
-def train_epoch(model, optimizer, pos_weights, dataloader, num_tasks, device, lambda_ortho):
+def train_epoch(model, optimizer, pos_weights, dataloader, num_tasks, device, lambda_ortho, num_chunks=4):
     model.train()
     epoch_loss = 0.0
+    total_updates = 0
+    
     for images, labels, clusters in dataloader:
         images, labels, clusters = images.to(device), labels.to(device), clusters.to(device)
-        optimizer.zero_grad()
+        batch_size = len(images)
+        chunk_size = batch_size // num_chunks
+        batch_loss = 0.0
         
-        # Handle output from DataParallel model (which wraps outputs in a list)
-        outputs_list, _ = model(images)
-        if isinstance(model, nn.DataParallel):
-            # Assuming model returns a tuple (outputs, _) and we want the first element
-            outputs = outputs_list
-        else:
-            outputs = outputs_list
+        # Process the batch in smaller chunks with parameter updates after each chunk
+        for i in range(num_chunks):
+            start_idx = i * chunk_size
+            end_idx = start_idx + chunk_size if i < num_chunks - 1 else batch_size
             
-        task_loss = 0.0
-        unique_clusters = torch.unique(clusters)
-        if max(unique_clusters) >= num_tasks:
-            raise ValueError(f"Cluster index {max(unique_clusters)} exceeds num_tasks {num_tasks}")
-        for cluster in unique_clusters:
-            mask = clusters == cluster
-            cluster_outputs = outputs[cluster][mask]
-            cluster_labels = labels[mask]
-            pos_weight = pos_weights[cluster]
-            criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
-            task_loss += criterion(cluster_outputs.view(-1), cluster_labels.float())
-        
-        # For orthogonality loss, we need to access the actual model weights
-        # If using DataParallel, access the module attribute
-        actual_model = model.module if isinstance(model, nn.DataParallel) else model
-        
-        ortho_loss = 0.0
-        for i in range(num_tasks):
-            for j in range(i + 1, num_tasks):
-                w_i = actual_model.heads[i][2].weight
-                w_j = actual_model.heads[j][2].weight
-                cos_sim = nn.functional.cosine_similarity(w_i.flatten(), w_j.flatten(), dim=0)
-                ortho_loss += torch.abs(cos_sim)
+            # Extract the current chunk
+            chunk_images = images[start_idx:end_idx]
+            chunk_labels = labels[start_idx:end_idx]
+            chunk_clusters = clusters[start_idx:end_idx]
+            
+            # Skip processing if chunk is empty (could happen in the last chunk)
+            if len(chunk_images) == 0:
+                continue
                 
-        total_loss = task_loss + lambda_ortho * ortho_loss
-        total_loss.backward()
-        optimizer.step()
-        epoch_loss += total_loss.item()
-    return epoch_loss / len(dataloader)
+            # Zero gradients before processing this chunk
+            optimizer.zero_grad()
+            
+            # Forward pass
+            outputs_list, _ = model(chunk_images)
+            if isinstance(model, nn.DataParallel):
+                outputs = outputs_list
+            else:
+                outputs = outputs_list
+            
+            # Calculate task loss for this chunk
+            task_loss = 0.0
+            unique_clusters = torch.unique(chunk_clusters)
+            if len(unique_clusters) > 0 and max(unique_clusters) >= num_tasks:
+                raise ValueError(f"Cluster index {max(unique_clusters)} exceeds num_tasks {num_tasks}")
+            
+            for cluster in unique_clusters:
+                mask = chunk_clusters == cluster
+                if not torch.any(mask):
+                    continue  # Skip if no samples in this cluster
+                
+                cluster_outputs = outputs[cluster][mask]
+                cluster_labels = chunk_labels[mask]
+                pos_weight = pos_weights[cluster]
+                criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+                task_loss += criterion(cluster_outputs.view(-1), cluster_labels.float())
+            
+            # Orthogonality loss calculation
+            actual_model = model.module if isinstance(model, nn.DataParallel) else model
+            ortho_loss = 0.0
+            for j in range(num_tasks):
+                for k in range(j + 1, num_tasks):
+                    w_j = actual_model.heads[j][2].weight
+                    w_k = actual_model.heads[k][2].weight
+                    cos_sim = nn.functional.cosine_similarity(w_j.flatten(), w_k.flatten(), dim=0)
+                    ortho_loss += torch.abs(cos_sim)
+            
+            # Calculate total loss for this chunk
+            chunk_loss = task_loss + lambda_ortho * ortho_loss
+            
+            # Backward pass and optimization for this chunk
+            chunk_loss.backward()
+            optimizer.step()
+            
+            # Accumulate loss for logging
+            batch_loss += chunk_loss.item()
+            total_updates += 1
+        
+        # Add average batch loss to epoch loss
+        epoch_loss += batch_loss / max(1, min(num_chunks, batch_size))
+    
+    # Return average loss across all batches
+    return epoch_loss / len(dataloader), total_updates
 
 def val_epoch(model, dataloader, device):
     model.eval()
@@ -136,8 +171,8 @@ def main():
     exp_name = f"UNI_{args.classification_task}_{args.testset}_{timestamp}"
     os.makedirs(args.output_dir, exist_ok=True)
 
-    # Initialize Wandb
-    wandb.init(project="pathology_multitask", name=exp_name)
+    # Initialize Wandb with all configuration
+    wandb.init(project="pathology_multitask", name=exp_name, config=vars(args))
 
     # Log GPU information
     if torch.cuda.is_available():
@@ -218,12 +253,37 @@ def main():
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3, factor=0.5)
 
     best_val_acc = 0.0
+    total_train_updates = 0
+    
+    print(f"Starting training with {args.num_chunks} updates per batch")
+    
     for epoch in range(args.epochs):
-        train_loss = train_epoch(model, optimizer, pos_weights, train_dataloader, num_tasks, device, args.lambda_ortho)
+        train_loss, epoch_updates = train_epoch(
+            model, 
+            optimizer, 
+            pos_weights, 
+            train_dataloader, 
+            num_tasks, 
+            device, 
+            args.lambda_ortho,
+            num_chunks=args.num_chunks
+        )
+        
+        total_train_updates += epoch_updates
         val_loss, val_acc = val_epoch(model, val_dataloader, device)
         scheduler.step(val_loss)
-        print(f"Epoch {epoch+1}/{args.epochs}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
-        wandb.log({"epoch": epoch+1, "train_loss": train_loss, "val_loss": val_loss, "val_acc": val_acc})
+        
+        print(f"Epoch {epoch+1}/{args.epochs}, Updates: {epoch_updates} (Total: {total_train_updates}), "
+              f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
+        
+        wandb.log({
+            "epoch": epoch+1, 
+            "train_loss": train_loss, 
+            "val_loss": val_loss, 
+            "val_acc": val_acc,
+            "updates_per_epoch": epoch_updates,
+            "total_updates": total_train_updates
+        })
 
         # Save best model
         if val_acc > best_val_acc:
@@ -235,6 +295,7 @@ def main():
             print(f"Saved best model: {model_filename}")
 
     wandb.finish()
+    print(f"Training completed with {total_train_updates} total parameter updates.")
 
 if __name__ == "__main__":
     main()
