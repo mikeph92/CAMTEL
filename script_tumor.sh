@@ -19,7 +19,8 @@ for TESTSET in "${TESTSETS[@]}"; do
         --classification_task "$CLASSIFICATION_TASK" \
         --crop_size "$CROP_SIZE" \
         --testset "$TESTSET" \
-        --multitask
+        --multitask \
+        --use_amp
 
     # Run testing with multitask enabled and multiple inference methods
     python test_no_aug.py \
@@ -29,6 +30,7 @@ for TESTSET in "${TESTSETS[@]}"; do
         --crop_size "$CROP_SIZE" \
         --testset "$TESTSET" \
         --multitask \
+        --use_amp \
         --inference_methods cluster weighted_voting weighted_sum
 
     echo "Finished $TESTSET."
