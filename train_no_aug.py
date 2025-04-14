@@ -159,7 +159,6 @@ def val_epoch(model, dataloader, device, num_tasks, use_amp=False):
     all_labels = []
     all_clusters = []
     
-    # Determine device type for autocast
     device_type = 'cuda' if torch.cuda.is_available() else 'cpu'
     
     with torch.no_grad():
@@ -167,25 +166,40 @@ def val_epoch(model, dataloader, device, num_tasks, use_amp=False):
             images, labels, clusters = images.to(device), labels.to(device), clusters.to(device)
             
             if use_amp:
-                # Updated autocast with device type parameter
                 with autocast(device_type=device_type):
                     outputs_list, cluster_probs = model(images)
-                    # For general validation metrics
-                    selected_outputs = torch.stack([outputs_list[cluster][i] for i, cluster in enumerate(clusters)])
+                    selected_outputs_list = []
+                    for i, cluster in enumerate(clusters):
+                        if cluster < len(outputs_list) and outputs_list[cluster].numel() > 0:
+                            selected_outputs_list.append(outputs_list[cluster][i])
+                    if not selected_outputs_list:
+                        print("Warning: No valid outputs for batch, skipping")
+                        continue
+                    selected_outputs = torch.stack(selected_outputs_list)
                     loss = nn.BCEWithLogitsLoss()(selected_outputs.squeeze(), labels.float())
             else:
                 outputs_list, cluster_probs = model(images)
-                # For general validation metrics
-                selected_outputs = torch.stack([outputs_list[cluster][i] for i, cluster in enumerate(clusters)])
+                selected_outputs_list = []
+                for i, cluster in enumerate(clusters):
+                    if cluster < len(outputs_list) and outputs_list[cluster].numel() > 0:
+                        selected_outputs_list.append(outputs_list[cluster][i])
+                if not selected_outputs_list:
+                    print("Warning: No valid outputs for batch, skipping")
+                    continue
+                selected_outputs = torch.stack(selected_outputs_list)
                 loss = nn.BCEWithLogitsLoss()(selected_outputs.squeeze(), labels.float())
             
             val_loss += loss.item()
             
-            # Store predictions and labels for overall metrics and per-cluster performance
-            all_preds.append(torch.sigmoid(selected_outputs.squeeze()).cpu())
+            preds = torch.sigmoid(selected_outputs.squeeze())
+            if preds.dim() == 0:
+                preds = preds.unsqueeze(0)
+            all_preds.append(preds.cpu())
             all_labels.append(labels.cpu())
             all_clusters.append(clusters.cpu())
     
+    if not all_preds:
+        raise RuntimeError("No valid predictions collected during validation")
     all_preds = torch.cat(all_preds)
     all_labels = torch.cat(all_labels)
     all_clusters = torch.cat(all_clusters)
@@ -199,7 +213,6 @@ def val_epoch(model, dataloader, device, num_tasks, use_amp=False):
         task_mask = all_clusters == task_id
         if torch.sum(task_mask) > 0:
             task_labels = all_labels[task_mask]
-            # Get predictions for this specific task
             task_pred_list = []
             for images, labels, clusters in dataloader:
                 images = images.to(device)
@@ -207,7 +220,6 @@ def val_epoch(model, dataloader, device, num_tasks, use_amp=False):
                 if torch.sum(task_mask) > 0:
                     with torch.no_grad():
                         if use_amp:
-                            # Updated autocast with device type parameter
                             with autocast(device_type=device_type):
                                 outputs_list, _ = model(images[task_mask])
                                 preds = torch.sigmoid(outputs_list[task_id])
@@ -215,26 +227,21 @@ def val_epoch(model, dataloader, device, num_tasks, use_amp=False):
                             outputs_list, _ = model(images[task_mask])
                             preds = torch.sigmoid(outputs_list[task_id])
                         
-                        # Fix for the tensor concatenation issue
-                        if preds.numel() > 0:  # Only append if tensor is not empty
+                        if preds.numel() > 0:
                             task_pred_list.append(preds.cpu().squeeze())
             
-            # Check if we have any predictions to concatenate
             if task_pred_list and all(p.numel() > 0 for p in task_pred_list):
                 task_preds = torch.cat(task_pred_list)
-                # Calculate AUC for this task
-                if len(torch.unique(task_labels)) > 1:  # Only calculate AUC if both classes present
+                if len(torch.unique(task_labels)) > 1:
                     auroc_metric = torchmetrics.classification.BinaryAUROC()
                     task_auc = auroc_metric(task_preds, task_labels.int()).item()
                     task_aucs[task_id] = task_auc
                     
-                    # Calculate confidence (calibration) based on prediction distribution
-                    confidence = (torch.abs(task_preds - 0.5) * 2).mean().item()  # Higher is more confident
+                    confidence = (torch.abs(task_preds - 0.5) * 2).mean().item()
                     task_confidence[task_id] = confidence
     
-    # Normalize confidence scores to create a temperature scaling factor (lower temperature = sharper distribution)
-    temperature = 1.0 / (task_confidence + 1e-6)  # Add epsilon to avoid division by zero
-    temperature = temperature / temperature.mean()  # Normalize around 1.0
+    temperature = 1.0 / (task_confidence + 1e-6)
+    temperature = temperature / temperature.mean()
     
     val_loss = val_loss / len(dataloader)
     return val_loss, val_acc, task_aucs, temperature
@@ -318,7 +325,7 @@ def main():
     train_dataloader = DataLoader(train_dataset, batch_size=optimal_batch_size, shuffle=True, 
                                  num_workers=args.num_workers, pin_memory=True)
     val_dataloader = DataLoader(val_dataset, batch_size=optimal_batch_size, shuffle=False, 
-                               num_workers=args.num_workers, pin_memory=True)
+                           num_workers=args.num_workers, pin_memory=True, drop_last=True)
     
     # Initialize optimizer and scheduler
     optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.01)
