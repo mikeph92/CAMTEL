@@ -40,4 +40,5 @@ class UNIMultitask(nn.Module):
         cluster_probs = self.attention(features)  # [batch_size, num_tasks]
         outputs = [head(features) for head in self.heads]  # List of [batch_size, output_dim]
         return outputs, cluster_probs
+
     

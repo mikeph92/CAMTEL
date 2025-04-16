@@ -12,15 +12,15 @@ INFERENCE_PATH="clustering_updated/inference_results"
 for TESTSET in "${TESTSETS[@]}"; do
     echo "Processing $TESTSET..."
 
-    # Run training with multitask enabled
-    python train_no_aug.py \
-        --dataset_path "$DATASET_PATH" \
-        --cluster_path "$CLUSTER_PATH" \
-        --classification_task "$CLASSIFICATION_TASK" \
-        --crop_size "$CROP_SIZE" \
-        --testset "$TESTSET" \
-        --multitask \
-        --use_amp
+    # # Run training with multitask enabled
+    # python train_no_aug.py \
+    #     --dataset_path "$DATASET_PATH" \
+    #     --cluster_path "$CLUSTER_PATH" \
+    #     --classification_task "$CLASSIFICATION_TASK" \
+    #     --crop_size "$CROP_SIZE" \
+    #     --testset "$TESTSET" \
+    #     --multitask \
+    #     --use_amp
 
     # Run testing with multitask enabled and multiple inference methods
     python test_no_aug.py \
