@@ -194,8 +194,18 @@ def infer_clusters(
 
 def main():
     # Example parameters
-    task = "tumor"
-    test_sets = ['pannuke', 'nucls', 'ocelot']
+    task = "TIL" #"tumor"
+
+    if task.lower() == 'tumor':
+        csv_path = "/home/michael/CAMTEL/dataset/tumor_dataset.csv"
+        test_sets = ['pannuke', 'nucls', 'ocelot'] # 'pannuke', 'nucls', 'ocelot'
+    elif task.lower() == 'til':
+        csv_path = "/home/michael/CAMTEL/dataset/TIL_dataset.csv"
+        test_sets = ['lizard', 'nucls', 'cptac', 'austin']
+    else:
+        raise ValueError("Task must be 'tumor' or 'TIL'")
+    
+    # test_sets = ['lizard', 'nucls', 'cptac', 'austin'] #['pannuke', 'nucls', 'ocelot']
     clustering_methods = ['kmeans']
     feature_types = ['lab']
     distance_metrics = ['cosine']
@@ -213,7 +223,8 @@ def main():
                             test_set=test_set,
                             clustering_method=clustering_method,
                             feature_type=feature_type,
-                            distance_metric=distance_metric
+                            distance_metric=distance_metric,
+                            csv_path=csv_path
                         )
                     except Exception as e:
                         print(f"Error during inference: {e}")

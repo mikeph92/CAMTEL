@@ -665,7 +665,7 @@ def process_dataset(
         task, test_set, feature_type, clustering_method, distance_metric
     )
     # Create output directories
-    _, _, _ = create_output_directories(task, test_set)
+    # _, _, _ = create_output_directories(task, test_set)
 
     # Save results
     save_results(
@@ -699,13 +699,13 @@ def main(task: str) -> None:
         test_sets = ['pannuke', 'nucls', 'ocelot'] # 'pannuke', 'nucls', 'ocelot'
     elif task.lower() == 'til':
         csv_path = "/home/michael/CAMTEL/dataset/TIL_dataset.csv"
-        test_sets = ['lizard', 'nucls', 'cptacCoad', 'tcgaBrca']
+        test_sets = ['lizard', 'nucls', 'cptac', 'austin']
     else:
         raise ValueError("Task must be 'tumor' or 'TIL'")
 
     feature_types = ['lab'] # 'histogram', 'lab', 'color_moments'
-    clustering_methods = ['kmeans', 'gmm'] #  'hierarchical' if needed
-    distance_metrics = ['euclidean'] # 'cosine', 'correlation', 'euclidean'
+    clustering_methods = ['kmeans'] # , 'gmm' 'hierarchical' if needed
+    distance_metrics = ['cosine'] # 'cosine', 'correlation', 'euclidean'
     
     for test_set in test_sets:
         for feature_type in feature_types:
@@ -725,5 +725,5 @@ def main(task: str) -> None:
                     )
 
 if __name__ == "__main__":
-    for task in ['tumor']:  # Add 'TIL' if needed
+    for task in ['TIL']:  # 'tumor', 'TIL' if needed
         main(task)
